@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture & Cheat Sheet — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link is-active" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">Architecture & Cheat Sheet</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 9</div>
+        <h1><i class="fas fa-map"></i> Architecture & Cheat Sheet</h1>
+        <p>פרק זה הוא נספח ההפניה של הספר: מפת הארכיטקטורה המלאה של מערכת LLM בייצור, רשימת בדיקה לפני כל בקשה, מדריך בחירת מודל לפי קריטריונים, טבלת השוואת משפחות מודלים, ומילון מונחים מרוכז לכל הספר. אין כאן הסברים מחודשים — רק עיון מהיר.</p>
+      </section>
+
+      <section class="topic" id="full-architecture">
+        <h2 class="topic__title"><i class="fas fa-diagram-project"></i> ארכיטקטורה מלאה</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מסלול חיים מלא של בקשה במערכת LLM production, מקצה לקצה — מרגע שהמשתמש שולח קלט ועד שהתשובה חוזרת אליו. כל שלב בתרשים מייצג שכבה אחרת בפרקים 1–8 של הספר.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-user"></i> User</div>
+            <div class="flow-step__desc">שולח בקשה או שאלה בממשק המוצר.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-display"></i> Frontend</div>
+            <div class="flow-step__desc">קולט את הקלט ומעביר לבקאנד, מציג בהמשך את התשובה (לרוב עם streaming).</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-server"></i> Backend</div>
+            <div class="flow-step__desc">מתאם את כל שלבי העיבוד, אכיפת מדיניות, ו-rate limiting.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-clock-rotate-left"></i> Memory</div>
+            <div class="flow-step__desc">טוען הקשר שיחה קודם רלוונטי למשתמש.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-eye"></i> Vision</div>
+            <div class="flow-step__desc">מעבד קלט חזותי אם קיים (תמונה, מסמך סרוק).</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-magnifying-glass"></i> RAG / Tools</div>
+            <div class="flow-step__desc">מאחזר מסמכים רלוונטיים ו/או מפעיל כלים חיצוניים לפי הצורך.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-hammer"></i> Prompt Builder</div>
+            <div class="flow-step__desc">מרכיב את הפרומפט הסופי מכל המקורות — system, זיכרון, RAG, קלט.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-gateway"></i> AI Gateway</div>
+            <div class="flow-step__desc">מנתב לספק/מודל המתאים, אוכף rate limiting ו-fallback.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-microchip"></i> LLM</div>
+            <div class="flow-step__desc">מריץ inference ומחזיר תשובה (או קריאת כלי נוספת).</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-check-double"></i> Validation</div>
+            <div class="flow-step__desc">בדיקת תקינות טכנית ו-guardrails של מדיניות ובטיחות על הפלט.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-file-lines"></i> Logging</div>
+            <div class="flow-step__desc">תיעוד מלא של הקריאה לצורך דיבוג, ביקורת, ו-monitoring.</div>
+          </div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step">
+            <div class="flow-step__label"><i class="fas fa-display"></i> Frontend</div>
+            <div class="flow-step__desc">מציג את התשובה הסופית למשתמש.</div>
+          </div>
+        </div>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>גם בקשה "פשוטה" למראה עוברת בפועל את רוב השכבות האלה — זיכרון, ניתוב gateway, validation, logging — גם אם המשתמש חווה רק שאלה ותשובה. ההבדל בין פרוטוטייפ ל-production הוא בדיוק היכולת לבנות, לתחזק, ולנטר את כל השרשרת הזו כמערכת אחת, לא רק את קריאת המודל בודדת שבמרכזה.</p>
+        </div>
+      </section>
+
+      <section class="topic" id="pre-request-checklist">
+        <h2 class="topic__title"><i class="fas fa-list-check"></i> Cheat Sheet — לפני כל בקשה</h2>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שישה מרכיבים שכדאי לוודא במפורש לפני שליחת כל קריאת LLM — רשימת בדיקה מהירה, לא הסבר מחודש.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> <strong>System Prompt</strong> — מוגדר בבירור, כולל תפקיד, מגבלות, וטון, ומעודכן לגרסה הנוכחית של המוצר.</li>
+          <li><i class="fas fa-check"></i> <strong>User Prompt</strong> — הקלט מנוסח או מעובד בצורה שמפרידה אותו בבירור מהוראות המערכת.</li>
+          <li><i class="fas fa-check"></i> <strong>Memory</strong> — רק הקשר שיחה רלוונטי ועדכני נטען, לא היסטוריה גורפת שמנפחת את ה-context לחינם.</li>
+          <li><i class="fas fa-check"></i> <strong>RAG</strong> — אחזור המסמכים תואם את השאלה בפועל, ותוצאות שאינן רלוונטיות מסוננות לפני הכנסה ל-prompt.</li>
+          <li><i class="fas fa-check"></i> <strong>Max Tokens</strong> — מוגבל לפי צורך אמיתי של סוג הבקשה, לא ברירת מחדל גבוהה גורפת.</li>
+          <li><i class="fas fa-check"></i> <strong>Temperature</strong> — מותאם למשימה: נמוך למשימות עקביות ועובדתיות, גבוה יותר למשימות יצירתיות.</li>
+        </ul>
+      </section>
+
+      <section class="topic" id="decision-cheatsheet">
+        <h2 class="topic__title"><i class="fas fa-code-branch"></i> Cheat Sheet — החלטות ארכיטקטורה נפוצות</h2>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שמונה שאלות שחוזרות בכל תכנון מערכת LLM — מיפוי מהיר בין מצב לבחירה מומלצה, עם קישור לפרק המרחיב. זו טבלת עיון, לא הסבר מחודש של המושגים.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-table"></i> מצב → החלטה</div>
+          <table>
+            <thead>
+              <tr>
+                <th>המצב</th>
+                <th>הבחירה המומלצת</th>
+                <th>הרחבה</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>המודל צריך גישה למידע עדכני, פרטי, או שלא היה חלק מהאימון</td>
+                <td>RAG</td>
+                <td><a href="03-memory-rag.html#rag-vs-finetune--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 3</a></td>
+              </tr>
+              <tr>
+                <td>צריך לשנות סגנון, פורמט, או התנהגות קבועה של המודל באופן עקבי בכל קריאה</td>
+                <td>Fine-Tuning</td>
+                <td><a href="03-memory-rag.html#rag-vs-finetune--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 3</a></td>
+              </tr>
+              <tr>
+                <td>המודל צריך לבצע פעולה בעולם האמיתי — קריאה ל-API, הרצת קוד, שליפת נתון חי</td>
+                <td>Tool Calling</td>
+                <td><a href="05-agents.html#tool-calling--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 5</a></td>
+              </tr>
+              <tr>
+                <td>המשימה דורשת כמה צעדים תלויי-תוצאה, שהרצף המדויק ביניהם לא ידוע מראש</td>
+                <td>Agent (לולאת Agent)</td>
+                <td><a href="05-agents.html#agent-loop--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 5</a></td>
+              </tr>
+              <tr>
+                <td>יש טווח משימות ברמות מורכבות שונות, ורוצים לאזן עלות מול איכות</td>
+                <td>Model Routing</td>
+                <td><a href="08-production.html#model-routing--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 8</a></td>
+              </tr>
+              <tr>
+                <td>כמה agents מתמחים צריכים לשתף פעולה על אותה משימה</td>
+                <td>דפוס תזמור — Supervisor או Swarm</td>
+                <td><a href="06-agent-patterns.html#orchestration-patterns--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 6</a></td>
+              </tr>
+              <tr>
+                <td>צריך לוודא שפלט המודל לא חורג ממדיניות תוכן או בטיחות לפני שהוא יוצא החוצה</td>
+                <td>Guardrails</td>
+                <td><a href="08-production.html#guardrails-output-validation--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 8</a></td>
+              </tr>
+              <tr>
+                <td>צריך למדוד אם שינוי בפרומפט או במודל שיפר או פגע באיכות בפועל</td>
+                <td>Evals על Golden Dataset</td>
+                <td><a href="07-evaluation.html#golden-datasets--from--09-architecture-cheatsheet.html%23decision-cheatsheet">פרק 7</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>RAG ו-Fine-Tuning פותרים בעיות שונות — ידע מול התנהגות — ולעיתים קרובות נדרשים שניהם יחד.</li>
+            <li>Tool Calling הוא היכולת הטכנית הבסיסית; Agent הוא השימוש בה בתוך לולאה איטרטיבית מרובת-צעדים.</li>
+            <li>Model Routing ו-Orchestration פותרים בעיות שונות: הראשון מאזן עלות/איכות לכל קריאה, השני מתאם בין agents.</li>
+            <li>אף החלטה כאן אינה חד-פעמית — מערכת production בוגרת בדרך כלל משלבת כמה מהן יחד.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="model-selection">
+        <h2 class="topic__title"><i class="fas fa-scale-balanced"></i> בחירת מודל — מדריך החלטה</h2>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>בחירת מודל נכונה מבוססת על קריטריונים ארכיטקטוניים, לא על שם מודל ספציפי שמתיישן במהירות:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>Context window נדרש</strong> — כמה טקסט (מסמכים, היסטוריית שיחה, תוצאות כלים) חייב להיכנס לפרומפט בבת אחת.</li>
+            <li><strong>רמת עלות</strong> — עלות לטוקן מוכפלת בנפח הקריאות בקנה מידה של ייצור, לא רק בעלות קריאה בודדת.</li>
+            <li><strong>איכות tool-use / function-calling</strong> — עד כמה המודל אמין בבחירת הכלי הנכון ובמילוי פרמטרים תקינים, קריטי במיוחד למערכות agentic.</li>
+            <li><strong>דרישות latency</strong> — האם המשימה דורשת תגובה כמעט-מיידית (ממשק שיחתי חי) או שיש סובלנות לזמן עיבוד ארוך יותר (עיבוד אצווה ברקע).</li>
+            <li><strong>self-hosting / open-weight</strong> — נדרש כאשר יש דרישת residency של נתונים (המידע לא יכול לצאת מסביבה מבוקרת), או כשעלות בקנה מידה גדול הופכת אירוח עצמי לכדאי יותר מקריאת API.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>משימת סיווג טקסט פשוטה בנפח גבוה (למשל תיוג פניות תמיכה נכנסות) מתאימה למודל קל ומהיר — עלות לטוקן נמוכה חשובה יותר מיכולת נימוק מתקדמת. משימת agent מורכבת רבת-שלבים (תכנון, קריאת כלים מרובה, קבלת החלטות) דורשת מודל חזק עם tool-use איכותי — כאן חיסכון בעלות על חשבון אמינות ההחלטות עלול לייצר כשלים שקטים ויקרים יותר בטווח הארוך.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>לבחור מודל לפי קריטריונים (context, עלות, tool-use, latency, self-hosting), לא לפי שם מותג.</li>
+            <li>עלות נמדדת בקנה מידה של נפח ייצור, לא בקריאה בודדת.</li>
+            <li>self-hosting רלוונטי כשיש דרישת residency של נתונים או כשההיקף הופך אותו לכדאי כלכלית.</li>
+            <li>ההשוואה בפועל בין מודלים זמינים מפורטת בטבלת <a href="#model-quick-reference--from--09-architecture-cheatsheet.html%23model-selection">Model Quick Reference</a>.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="model-quick-reference">
+        <h2 class="topic__title"><i class="fas fa-table"></i> Model Quick Reference</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-table"></i> השוואת משפחות מודלים לפי מחלקת יכולת</div>
+          <table>
+            <thead>
+              <tr>
+                <th>משפחה</th>
+                <th>חוזקות טיפוסיות</th>
+                <th>Context Window טיפוסי</th>
+                <th>מתי לבחור</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>מודלים מובילים (flagship)</td>
+                <td>נימוק מורכב, tool-use אמין, ביצועים גבוהים במגוון רחב של משימות</td>
+                <td>גדול</td>
+                <td>משימות agentic רבות-שלבים, החלטות בעלות השפעה גבוהה, כתיבה/ניתוח מורכבים</td>
+              </tr>
+              <tr>
+                <td>מודלים קלים/מהירים (lightweight)</td>
+                <td>latency נמוך, עלות לטוקן זולה משמעותית</td>
+                <td>בינוני עד גדול</td>
+                <td>סיווג, חילוץ שדה בודד, משימות בנפח גבוה שאינן דורשות נימוק עמוק</td>
+              </tr>
+              <tr>
+                <td>מודלים open-weight/self-hosted</td>
+                <td>שליטה מלאה בסביבת ההרצה, ללא תלות בספק חיצוני</td>
+                <td>משתנה לפי דגם</td>
+                <td>דרישת residency נתונים, עלות בקנה מידה גדול, סביבות מבודדות/ללא חיבור לרשת חיצונית</td>
+              </tr>
+              <tr>
+                <td>מודלים מתמחי-reasoning</td>
+                <td>ביצועים גבוהים במשימות נימוק רב-שלבי מפורש, מתמטיקה, תכנון</td>
+                <td>גדול</td>
+                <td>משימות שדורשות שרשרת היסק ארוכה ומדויקת, לרוב במחיר latency גבוה יותר</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="topic" id="glossary">
+        <h2 class="topic__title"><i class="fas fa-book"></i> מילון מונחים</h2>
+        <div class="box">
+          <dl class="glossary-list">
+            <dt>Agent</dt>
+            <dd>מערכת מבוססת LLM שמתכננת ומבצעת רצף פעולות באופן איטרטיבי, כולל קריאת כלים, לצורך השגת מטרה.</dd>
+
+            <dt>AI (Artificial Intelligence)</dt>
+            <dd>תחום העוסק בבניית מערכות שמבצעות משימות שבדרך כלל דורשות אינטליגנציה אנושית.</dd>
+
+            <dt>AI Gateway</dt>
+            <dd>שכבת ביניים מרכזית בין האפליקציה למודלים שונים, המספקת ניתוב, ניהול מפתחות, rate limiting, ו-fallback במקום אחד.</dd>
+
+            <dt>Chunking</dt>
+            <dd>חלוקת מסמכים ארוכים ליחידות (chunks) קטנות יותר לפני יצירת embeddings, לצורך אחזור יעיל ומדויק ב-RAG.</dd>
+
+            <dt>Context (Context Window)</dt>
+            <dd>כמות הטוקנים המקסימלית שמודל יכול לעבד בבת אחת בקריאה בודדת, כולל קלט ופלט יחד.</dd>
+
+            <dt>Embedding</dt>
+            <dd>ייצוג וקטורי מספרי של טקסט (או תוכן אחר) שבו קרבה במרחב הווקטורי משקפת קרבה סמנטית במשמעות.</dd>
+
+            <dt>Golden Dataset</dt>
+            <dd>אוסף מקרי בדיקה עם תשובות ייחוס מאומתות, המשמש כבסיס עקבי להערכת ביצועי מערכת LLM לאורך זמן.</dd>
+
+            <dt>Guardrails</dt>
+            <dd>מסננים ברמת מדיניות ובטיחות שרצים לפני ואחרי קריאת המודל, לחסימת תוכן פוגעני או חריגה ממדיניות.</dd>
+
+            <dt>Hybrid Search</dt>
+            <dd>שילוב חיפוש סמנטי (embeddings) עם חיפוש מבוסס מילות מפתח (keyword/BM25) לצורך שיפור דיוק האחזור.</dd>
+
+            <dt>Inference</dt>
+            <dd>תהליך הרצת המודל המאומן על קלט נתון לצורך הפקת פלט, בניגוד לשלב האימון עצמו.</dd>
+
+            <dt>LLM (Large Language Model)</dt>
+            <dd>מודל שפה גדול שאומן על נפחי טקסט עצומים לחיזוי הטוקן הבא, ומשמש כבסיס ליישומי AI מבוססי שפה.</dd>
+
+            <dt>LLM-as-Judge</dt>
+            <dd>שימוש במודל שפה נפרד להערכת איכות פלט של מודל אחר, כתחליף או השלמה להערכה אנושית.</dd>
+
+            <dt>MCP (Model Context Protocol)</dt>
+            <dd>פרוטוקול סטנדרטי לחיבור מודלים וסוכני AI למקורות מידע וכלים חיצוניים בממשק אחיד.</dd>
+
+            <dt>Model Routing</dt>
+            <dd>ניתוב דינמי בין מודלים שונים בהתאם למורכבות המשימה, עלות, ו-latency נדרשים.</dd>
+
+            <dt>Prompt</dt>
+            <dd>הקלט הטקסטואלי שנשלח למודל, לרוב מורכב מהוראות מערכת, הקשר, ובקשת המשתמש.</dd>
+
+            <dt>RAG (Retrieval-Augmented Generation)</dt>
+            <dd>טכניקה שבה מאחזרים מידע רלוונטי ממקור חיצוני ומזינים אותו לפרומפט לפני קריאת המודל, כדי לבסס תשובות על מידע עדכני או פרטי.</dd>
+
+            <dt>ReAct</dt>
+            <dd>תבנית פעולה עבור agents המשלבת נימוק מפורש (reasoning) ופעולה (acting) לסירוגין, איטרציה אחר איטרציה.</dd>
+
+            <dt>Reflexion</dt>
+            <dd>תבנית שבה agent מעריך את התוצאה של פעולותיו הקודמות ומשתמש בביקורת עצמית זו לשיפור הניסיון הבא.</dd>
+
+            <dt>Reranking</dt>
+            <dd>שלב נוסף באחזור RAG שמדרג מחדש תוצאות אחזור ראשוניות לפי רלוונטיות מדויקת יותר, לרוב באמצעות מודל ייעודי.</dd>
+
+            <dt>Semantic Cache</dt>
+            <dd>מנגנון caching שמחזיר תשובה שמורה עבור קלט הדומה סמנטית לקלט קודם, גם כשהניסוח המילולי שונה.</dd>
+
+            <dt>Streaming</dt>
+            <dd>מסירת תשובת המודל למשתמש בהדרגה, טוקן אחר טוקן, במקום המתנה לתשובה מלאה לפני הצגתה.</dd>
+
+            <dt>Token</dt>
+            <dd>יחידת הטקסט הבסיסית שמודל שפה מעבד — לרוב חלק ממילה, מילה שלמה, או סימן פיסוק.</dd>
+
+            <dt>Tool Calling</dt>
+            <dd>יכולת של מודל לבקש הפעלה של פונקציה או כלי חיצוני מוגדר מראש, ולקבל את תוצאתו כקלט להמשך העיבוד.</dd>
+
+            <dt>Vector DB</dt>
+            <dd>מסד נתונים המותאם לאחסון embeddings וחיפוש יעיל של הוקטורים הקרובים ביותר לשאילתה נתונה.</dd>
+          </dl>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#full-architecture">ארכיטקטורה מלאה</a>
+      <a class="toc__link" href="#pre-request-checklist">Cheat Sheet — לפני כל בקשה</a>
+      <a class="toc__link" href="#decision-cheatsheet">Cheat Sheet החלטות</a>
+      <a class="toc__link" href="#model-selection">בחירת מודל</a>
+      <a class="toc__link" href="#model-quick-reference">Model Quick Reference</a>
+      <a class="toc__link" href="#glossary">מילון מונחים</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

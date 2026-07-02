@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Patterns מתקדמים — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link is-active" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">Agent Patterns מתקדמים</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 6</div>
+        <h1><i class="fas fa-sitemap"></i> Agent Patterns מתקדמים</h1>
+        <p>פרק 5 הניח את התשתית: function calling, tool calling, ולולאת agent בסיסית. אבל "לולאה איטרטיבית" היא תיאור מבני בלבד — היא לא אומרת דבר על *איך* ה-agent מנמק בכל סבב, *מתי* הוא מתכנן מראש לעומת צעד-צעד, *אם* הוא בודק את עצמו, ו*איך* כמה agents מתואמים ביניהם כשיש יותר מאחד. הפרק הזה סוקר דפוסי עיצוב קונקרטיים שממלאים את הלולאה הכללית בתוכן מעשי — כל אחד פותר בעיה ספציפית שצצה כשמריצים agents על משימות אמיתיות: נימוק גלוי, תכנון מראש מול תכנון אגבי, ביקורת עצמית, תזמור בין-סוכני, נקודות עצירה לאדם, טיפול בכשלים, וזיכרון מעבר לריצה בודדת.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="compare-row">
+          <div class="compare-card">
+            <div class="compare-card__title"><i class="fas fa-comments"></i> ReAct</div>
+            <p>Thought → Action → Observation, צעד אחד בכל סבב, בלי תוכנית מוקדמת.</p>
+          </div>
+          <div class="compare-card">
+            <div class="compare-card__title"><i class="fas fa-list-check"></i> Plan-and-Execute</div>
+            <p>תוכנית מלאה מראש, ואז ביצוע תתי-המשימות ברצף.</p>
+          </div>
+          <div class="compare-card">
+            <div class="compare-card__title"><i class="fas fa-arrows-rotate"></i> Reflexion</div>
+            <p>ביקורת עצמית על הפלט לפני מסירתו, ותיקון בתוך אותה ריצה.</p>
+          </div>
+        </div>
+        <div class="chapter-diagram__caption">שלושה דפוסים שממלאים את לולאת ה-Agent הכללית מפרק 5 בתוכן מעשי — כל אחד פותר בעיה שונה.</div>
+      </div>
+
+      <section class="topic" id="react-pattern">
+        <h2 class="topic__title"><i class="fas fa-repeat"></i> דפוס ReAct (Reasoning + Acting)</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>דפוס שבו המודל מנמק במפורש בטקסט (Thought) לפני כל פעולה (Action), צופה בתוצאה שחוזרת (Observation), ומשתמש בה כקלט לסבב הנימוק הבא — Thought → Action → Observation, שוב ושוב, עד שיש מספיק מידע לתשובה סופית.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p><a href="05-agents.html#agent-loop--from--06-agent-patterns.html%23react-pattern">Agent Loop</a> הבסיסי מתאר את מבנה הבקרה (בקשה → כלי → תוצאה → החלטה) אבל לא כופה שום מבנה על ההחלטה עצמה. בלי נימוק גלוי, בחירת הפעולה הבאה היא "קופסה שחורה" — קשה לדבג למה agent בחר כלי מסוים, וקשה למודל עצמו לתקן מסלול שגוי כי אין רצף מחשבה מפורש שהוא יכול "להסתכל עליו" בסבב הבא. כתיבת Thought מפורש לפני Action משפרת עקביות ההחלטה וגם הופכת את התהליך לשקוף לניפוי שגיאות.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ה-prompt מנחה את המודל להפיק בכל סבב שלושה חלקים בזה אחר זה:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>Thought</strong> — נימוק מילולי על המצב הנוכחי ומה נדרש הלאה.</li>
+            <li><strong>Action</strong> — קריאת הכלי הנגזרת מהנימוק.</li>
+            <li><strong>Observation</strong> — תוצאת הכלי, שמוזנת בחזרה כהקשר לסבב הבא.</li>
+          </ul>
+          <p>המחזור חוזר עד שה-Thought קובע שיש מספיק מידע, ואז מופקת תשובה סופית במקום Action נוספת.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בשאלה "כמה עובדים יש בחברה שרכשה את החברה שבה עבד X ב-2019", ה-Thought הראשון עשוי להיות "צריך קודם למצוא איפה עבד X ב-2019", ה-Action מפעילה כלי חיפוש, ה-Observation מחזירה את שם החברה, וה-Thought הבא בונה על התוצאה הזו כדי לנסח את שאילתת החיפוש הבאה — מסלול נימוק-פעולה שקוף שאפשר לעקוב אחריו צעד אחר צעד.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-comment-dots"></i> Thought</div><div class="flow-step__desc">נימוק מילולי גלוי על הצעד הבא</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-bolt"></i> Action</div><div class="flow-step__desc">קריאת כלי הנגזרת מהנימוק</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-eye"></i> Observation</div><div class="flow-step__desc">תוצאת הכלי בפועל</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-rotate-left"></i> חזרה ל-Thought</div><div class="flow-step__desc">אם נדרש מידע נוסף — סבב חדש</div></div>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לשמור את ה-Thought בהיסטוריית השיחה, גם אם אינו מוצג למשתמש הסופי — הוא חיוני לדיבוג ולהמשכיות הנימוק בין סבבים.</li>
+          <li><i class="fas fa-check"></i> לדרוש במפורש בפורמט הפלט הפרדה בין Thought ל-Action, כדי שקוד צד-לקוח יוכל לפרסר ולתעד כל שלב בנפרד.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשמיט את שלב ה-Thought כדי "לחסוך טוקנים" — פעולה בלי נימוק גלוי נוטה יותר לבחירת כלי שגויה ואינה ניתנת לניפוי.</li>
+            <li><i class="fas fa-xmark"></i> להתייחס ל-Observation כאל טקסט חופשי לא-מובנה שהמודל צריך "לנחש" לפרש, במקום להזין אותו בפורמט עקבי וברור.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ReAct הוא בעיקרו משמעת פורמט על גבי agent loop קיים, לא מנגנון חדש — אבל המשמעת הזו היא ההבדל בין agent שאפשר לדבג לבין agent שהתנהגותו אטומה. ברוב מסגרות ה-agent המודרניות (Claude Code, Cursor Agent Mode וכדומה) עקבות הנימוק גלויות בדיוק מהסיבה הזו.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>ReAct = Thought → Action → Observation, בלולאה, עם נימוק גלוי לפני כל פעולה.</li>
+            <li>נימוק גלוי משפר עקביות ודיבוג, במחיר טוקנים נוספים.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="plan-and-execute">
+        <h2 class="topic__title"><i class="fas fa-list-check"></i> Plan-and-Execute</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>דפוס שבו שלב תכנון נפרד — פירוק המשימה המלאה לרשימת תתי-משימות מראש — קודם לשלב ביצוע, בניגוד ל-<a href="#react-pattern--from--06-agent-patterns.html%23plan-and-execute">ReAct</a> שמתכנן צעד בודד אחד בכל סבב בלי תוכנית כוללת מוקדמת.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>תכנון צעד-אחר-צעד (כמו ב-ReAct) יעיל וגמיש, אבל במשימות ארוכות עם תלויות ברורות בין שלבים הוא מבזבז סבבי נימוק על גילוי מחדש של מבנה שכבר ידוע מראש. תוכנית מלאה מראש נותנת יעילות וזרימה ברורה — אפשר להריץ תתי-משימות בלי לנמק מחדש על המבנה הכולל בכל סבב. המחיר: פחות גמישות לשינויים באמצע — אם תת-משימה חושפת מידע שמפר הנחת יסוד של התוכנית, נדרש מנגנון תכנון-מחדש מפורש, לא רק "המשך הלאה".</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שלב תכנון ראשוני מפרק את הבקשה לרשימת תתי-משימות מסודרת (ולעיתים עם תלויות ביניהן). שלב ביצוע מריץ כל תת-משימה בזו אחר זו — כל אחת עשויה להפעיל agent loop משלה (ואף להיעזר ב-ReAct פנימית) — ותוצאות מצטברות. אם תת-משימה נכשלת או חושפת מידע סותר, נדרש צעד תכנון-מחדש מפורש שמעדכן את שאר התוכנית, ולא רק המשך עיוור לפי הרשימה המקורית.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כלים agentic לכתיבת קוד הפועלים במצב תכנון (כגון Claude Code או Cursor Agent Mode במצב "plan") מציגים תוכנית מפורשת — רשימת קבצים לשנות וסדר הפעולות — לפני שהם מתחילים לערוך, ורק לאחר אישור או תחילת ביצוע עוברים לשלב ריצה שמבצע כל צעד ברשימה. זה שונה מהותית מ-agent שמחליט צעד-צעד בלי לחשוף תוכנית כוללת מראש.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש ב-plan-and-execute כשהמשימה ארוכה ומבנה תתי-המשימות ידוע מראש ברמה גבוהה — כתיבת פיצ'ר רב-קבצים, מיגרציה, פייפליין מרובה-שלבים.</li>
+          <li><i class="fas fa-check"></i> לבנות מנגנון תכנון-מחדש מפורש למקרה שתת-משימה חושפת מידע שסותר את התוכנית המקורית, ולא להניח שהתוכנית תמיד תקפה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשתמש בתוכנית קשיחה במשימה שבה כל צעד תלוי מהותית בתוצאת קודמו ואי-אפשר לחזות מראש — שם ReAct צעד-צעד מתאים יותר.</li>
+            <li><i class="fas fa-xmark"></i> להמשיך ביצוע תוכנית אחרי שתת-משימה נכשלה, בלי לעצור ולהעריך אם שאר התוכנית עדיין רלוונטית.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הבחירה בין plan-and-execute ל-ReAct דומה לבחירה בין תכנון פרויקט מראש לבין פיתוח אג'ילי אינקרמנטלי — אין תשובה נכונה גורפת, יש טרייד-אוף בין יעילות-כשהמבנה ידוע לבין גמישות-כשהוא לא. agents רבים משלבים את שניהם: תוכנית ברמה גבוהה, וביצוע כל תת-משימה בלולאת ReAct פנימית.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>plan-and-execute = תכנון מלא מראש, ואז ביצוע; ReAct = תכנון צעד-צעד תוך כדי ריצה.</li>
+            <li>יעיל למשימות עם מבנה ידוע; פחות גמיש לשינויים באמצע.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="reflexion">
+        <h2 class="topic__title"><i class="fas fa-magnifying-glass"></i> Reflexion</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>דפוס שבו ה-agent מבקר את הפלט או הביצוע של עצמו (self-critique) לפני החזרת תוצאה סופית או לפני צעד הבא, ומזין את הביקורת בחזרה כהקשר — למידה מכישלון בתוך אותה ריצה, לא fine-tuning של המודל עצמו.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>agent שמבצע פעולה ומקבל אותה כמוגמרת ללא בדיקה חוזרת, מעביר טעויות הלאה בלי הזדמנות לתקן. הוספת שלב ביקורת עצמית — "האם התוצאה הזו באמת עונה על הדרישה? מה חסר?" — לפני שהתוצאה נחשבת סופית, תופסת כשלים שהמודל עצמו יכול לזהות כשהוא בוחן את הפלט מחדש בפרספקטיבה נפרדת, גם בלי משוב חיצוני.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>לאחר הפקת פלט או ביצוע פעולה, סבב נוסף מפעיל את המודל (או instance נפרד שלו) בתפקיד מבקר: לבחון את התוצאה מול הדרישה המקורית ולזהות פערים או שגיאות. אם נמצאה בעיה, הביקורת מוזנת בחזרה כהקשר לסבב תיקון נוסף — לא איפוס והתחלה מחדש, אלא שיפור מבוסס על מה שכבר נעשה. המחזור חוזר עד שהביקורת עצמה קובעת שהתוצאה מספקת, או עד למגבלת סבבים.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>agent שכתב פונקציה ומריץ עליה בדיקות שנכשלות אינו רק מקבל את הכישלון כפלט סופי — הוא קורא את פלט הבדיקה ככשל, מנמק מה בקוד גרם לו, ומתקן בהתאם, לפני שהוא מציג את הקוד כמוגמר. זו צורה מעשית של reflexion: הביקורת (פלט הבדיקה שנכשלה) מוזנת בחזרה לתוך אותה ריצה כדי לשפר את התוצאה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר קריטריון ביקורת ברור וממוקד (בדיקות עוברות, עמידה בדרישה מפורשת) ולא רק "האם זה נראה טוב" — ביקורת מעורפלת מייצרת תיקונים חסרי כיוון.</li>
+          <li><i class="fas fa-check"></i> להגביל את מספר סבבי הביקורת-תיקון, כמו כל לולאה — reflexion בלי עצירה עלולה להיכנס למחזור תיקונים אינסופי.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להתבלבל בין reflexion (למידה בתוך ריצה בודדת, נעלמת בסופה) לבין fine-tuning (עדכון קבוע של משקלי המודל) — הם פותרים בעיות שונות לחלוטין.</li>
+            <li><i class="fas fa-xmark"></i> לדלג על שלב הביקורת במשימות קריטיות כדי לחסוך זמן ריצה, כשדווקא שם המחיר של שגיאה שלא נתפסה הוא הגבוה ביותר.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>reflexion יעיל במיוחד כשיש אות בדיקה אובייקטיבי וזול — תוצאת בדיקה, שגיאת קומפילציה, ולידציה של schema — כי אז הביקורת אינה תלויה בשיפוט הסובייקטיבי של המודל על עצמו, אלא בעובדה חיצונית שהוא רק מנמק לגביה. reflexion ללא אות חיצוני נשען כולו על יכולת המודל לזהות את הטעויות של עצמו, שהיא מוגבלת יותר.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>reflexion = ביקורת עצמית בתוך הריצה, לא עדכון קבוע של המודל.</li>
+            <li>יעיל ביותר כשיש אות בדיקה אובייקטיבי (בדיקות, שגיאות קומפילציה) ולא רק שיפוט סובייקטיבי.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="orchestration-patterns">
+        <h2 class="topic__title"><i class="fas fa-diagram-project"></i> דפוסי תזמור Multi-Agent</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שני דפוסים מנוגדים לתזמור מערכת <a href="05-agents.html#multi-agent-intro--from--06-agent-patterns.html%23orchestration-patterns">multi-agent</a>:</p>
+          <ul class="term-list">
+            <li><strong>Supervisor</strong> — agent מרכזי מנתב משימות ל-agents מתמחים ומרכז את תוצאותיהם.</li>
+            <li><strong>Swarm</strong> — agents שווי-מעמד המתקשרים ומעבירים שליטה זה לזה ישירות, ללא מתאם מרכזי.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>ברגע שיש יותר מ-agent אחד, מישהו — או משהו — צריך להחליט מי פועל מתי ומי רואה את מה.</p>
+          <ul class="term-list term-list--why">
+            <li><strong>Supervisor</strong> — נותן שליטה ברורה ונקודת אחריות יחידה על הזרימה, אבל הופך לצוואר בקבוק כאשר כל תקשורת חייבת לעבור דרכו.</li>
+            <li><strong>Swarm</strong> — מבזר את ההחלטה ומאפשר תקשורת ישירה בין agents שצריכים לשתף פעולה בצמידות, אך מוותר על נקודת בקרה מרכזית שמפשטת דיבוג ומעקב.</li>
+          </ul>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>Supervisor</strong> — agent מרכזי מקבל את הבקשה, מחליט לאיזה agent מתמחה לנתב אותה (או חלקים ממנה), מקבל את התוצאה חזרה, ומחליט אם לנתב לעוד agent, לרכז תשובה, או להחזיר למשתמש. כל agent מתמחה "מדבר" רק עם ה-Supervisor, לא ישירות עם agents אחרים.</li>
+            <li><strong>Swarm</strong> — כל agent מחזיק יכולת להעביר שליטה ("handoff") ישירות ל-agent אחר כאשר הוא מזהה שהמשימה חורגת מתחום אחריותו, בלי לעבור דרך רכזת מרכזית — השליטה עוברת מיד ליד לפי הצורך שמתגלה תוך כדי ריצה.</li>
+          </ul>
+        </div>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-sitemap"></i> Supervisor — ניתוב מרכזי</div>
+          <div class="flow-diagram">
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-user-tie"></i> Supervisor</div><div class="flow-step__desc">מקבל את הבקשה, מחליט לאן לנתב</div></div>
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-code"></i> Agent: קוד</div><div class="flow-step__desc">מטופל ומדווח בחזרה ל-Supervisor</div></div>
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-magnifying-glass-chart"></i> Agent: מחקר</div><div class="flow-step__desc">מטופל ומדווח בחזרה ל-Supervisor</div></div>
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-vial"></i> Agent: בדיקה</div><div class="flow-step__desc">מטופל ומדווח בחזרה ל-Supervisor</div></div>
+          </div>
+        </div>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-people-arrows"></i> Swarm — שליטה מבוזרת</div>
+          <div class="flow-diagram flow-diagram--horizontal">
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-headset"></i> Agent: קליטה</div><div class="flow-step__desc">מזהה שהנושא טכני, מעביר שליטה</div></div>
+            <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-screwdriver-wrench"></i> Agent: טכני</div><div class="flow-step__desc">מזהה שנדרש חיוב, מעביר שליטה</div></div>
+            <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+            <div class="flow-step"><div class="flow-step__label"><i class="fas fa-file-invoice-dollar"></i> Agent: חיוב</div><div class="flow-step__desc">מטפל ומחזיר תשובה סופית ישירות</div></div>
+          </div>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>מערכת תמיכת לקוחות עשויה לממש Swarm: agent קליטה שמזהה פנייה טכנית מעביר שליטה ישירות ל-agent טכני, וזה, אם מתגלה שהבעיה קשורה לחיוב, מעביר שליטה ל-agent חיוב — בלי לחזור דרך רכזת. לעומת זאת, מערכת פיתוח תוכנה שבה agent מתכנן מפרק משימה ומנתב תת-משימות ל-agent כתיבה ול-agent בדיקה, ומרכז את שתי התוצאות לפני מסירה למשתמש, היא דוגמה ל-Supervisor.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לבחור Supervisor כברירת מחדל כשנדרשת נקודת בקרה, לוג מרכזי, ואחריות ברורה על סדר הפעולות — קל יותר לדבג ולבקר.</li>
+          <li><i class="fas fa-check"></i> לשקול Swarm כאשר agents צריכים תקשורת צמודה ותכופה זה עם זה, וניתוב הכל דרך מתאם מרכזי יוצר latency וצוואר בקבוק מיותרים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבחור Swarm כברירת מחדל "כי זה גמיש יותר" בלי להביא בחשבון שהיעדר נקודת בקרה מרכזית מקשה משמעותית על מעקב ודיבוג כשמשהו משתבש.</li>
+            <li><i class="fas fa-xmark"></i> לבנות Supervisor שמעביר כל פרט מידע בין agents במקום להעביר רק את מה שרלוונטי לתת-המשימה — הופך את ה-Supervisor לצוואר בקבוק גם מבחינת עומס הקשר.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הבחירה בין Supervisor ל-Swarm היא בעצם אותה שאלה ארגונית שקיימת בצוותי אנוש: היררכיה עם מנהל פרויקט מרכזי, או צוות שטוח שמעביר בעיות ישירות בין חברים לפי מומחיות. אין תשובה "נכונה" אוניברסלית — יש טרייד-אוף בין נראות ובקרה (Supervisor) לבין מהירות ועקיפת צוואר בקבוק (Swarm), ומערכות רבות בפועל משלבות את שניהם ברמות שונות של המערכת.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Supervisor = ניתוב וריכוז מרכזי; Swarm = handoff ישיר בין agents שווי-מעמד.</li>
+            <li>Supervisor קל יותר לדבג; Swarm מתאים לתקשורת צמודה בלי צוואר בקבוק.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="human-in-the-loop">
+        <h2 class="topic__title"><i class="fas fa-hand"></i> Human-in-the-Loop</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>נקודות עצירה יזומות בתוך agent loop שבהן ה-agent ממתין באופן מפורש לאישור אדם לפני ביצוע פעולה בלתי-הפיכה או רגישה, במקום להמשיך אוטומטית.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>לא כל טעות ניתנת לתיקון בסבב הבא — מחיקת נתונים, ביצוע תשלום, או שליחת הודעה ללקוח חיצוני הן פעולות שברגע שקרו, קרו. עבור פעולות מהסוג הזה שקיפות וניתנת-לתיקון (כמו reflexion) אינה מספיקה; נדרשת חסימה יזומה של הביצוע עד לאישור מפורש.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כלים או פעולות מסווגים מראש כ"דורשי אישור"; כשה-agent מגיע לקריאה כזו, הלולאה נעצרת, הפעולה המוצעת מוצגת לאדם, וההרצה ממשיכה רק לאחר אישור (או מבוטלת/מותאמת לפי דחייה).</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כלי agentic לכתיבת קוד עוצר ומציג diff לאישור לפני מחיקת קובץ או הרצת פקודת terminal הרסנית, אך ממשיך אוטומטית בפעולות הפיכות כמו קריאת קובץ או חיפוש בבסיס הקוד.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לסווג כלים מראש לפי הפיכות הפעולה, לא לפי תחושת בטן ברגע הריצה — הקריטריון צריך להיות ברור ועקבי מראש.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לדרוש אישור אדם על כל פעולה כולל הפיכות ולא-רגישות, מה שהופך את ה-agent לאיטי ומייתר את היתרון של אוטומציה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>human-in-the-loop יעיל ככל שהוא ממוקד — נקודת עצירה על כל פעולה הופכת לרעש שאדם מאשר בלי לקרוא; נקודת עצירה רק על הבלתי-הפיך נשארת משמעותית.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>עצירה יזומה לאישור אדם, ממוקדת בפעולות בלתי-הפיכות או רגישות בלבד.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="agent-error-handling">
+        <h2 class="topic__title"><i class="fas fa-triangle-exclamation"></i> טיפול בשגיאות בלולאת Agent</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מנגנוני התמודדות עם כשלים בתוך agent loop: ניסיונות חוזרים (retries) עם השהיה גוברת (backoff), timeout לכלים שנתקעים, והחלטה מודעת מתי להיכשל בצורה מבוקרת במקום לנסות שוב ללא סוף.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>כלים חיצוניים נכשלים — timeouts, שגיאות רשת זמניות, API עמוס. בלי מנגנון טיפול, כשל נקודתי עוצר את כל הריצה או, בקצה השני, agent שממשיך לנסות ללא הגבלה תוקע משאבים ומייצר עלות בלתי-צפויה.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>קריאת כלי שנכשלת מסווגת כזמנית (retry עם backoff מוגבל) או קבועה (fail gracefully — דיווח כשל ברור ל-LLM כדי שינמק על חלופה, במקום לחזור על אותה קריאה). timeout מוגדר לכל כלי כדי למנוע תקיעה בלתי-מוגבלת של הלולאה כולה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>קריאה ל-API חיצוני שנכשלת עם שגיאת timeout מנוסה שוב עד שלוש פעמים עם השהיה גוברת; אם כל הניסיונות נכשלים, ה-agent מקבל הודעת כשל מפורשת ("הכלי X אינו זמין") ומנמק על מסלול חלופי, במקום שהלולאה כולה תיתקע או תמשיך לנסות ללא הגבלה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר timeout סביר לכל כלי ומגבלת retries קבועה מראש, לא ללא-הגבלה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לתת לכל שגיאה, זמנית או קבועה, לעצור את כל הריצה במקום להבחין בין השתיים ולטפל בהתאם.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>כשל מבוקר עם הודעה ברורה חזרה ל-LLM שקול לטיפול בחריגות בתוכנה רגילה — המטרה אינה למנוע כשל אלא לוודא שהוא מדווח בפורמט שהמערכת (או המודל) יכולה לנמק לגביו ולהגיב אליו.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>retries עם backoff לשגיאות זמניות; timeout לכלים תקועים; fail gracefully לכשל קבוע.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="agent-memory">
+        <h2 class="topic__title"><i class="fas fa-clock-rotate-left"></i> זיכרון Agent</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שלושה סוגי זיכרון הרלוונטיים ל-agent:</p>
+          <ul class="term-list">
+            <li><strong>short-term</strong> — ה-Context של הריצה הנוכחית בלבד, נעלם בסופה.</li>
+            <li><strong>long-term</strong> — מידע כללי המאוחסן חיצונית ונטען לפי צורך בין ריצות נפרדות.</li>
+            <li><strong>episodic</strong> — זיכרון של ריצות או משימות ספציפיות קודמות, לשימוש כתקדים במשימה עתידית דומה.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>short-term בלבד אומר שה-agent "שוכח" הכל ברגע שהריצה מסתיימת — כל משימה מתחילה מאפס, גם אם דומה למשימה שכבר נפתרה. long-term ו-episodic מאפשרים לשמר ידע מעבר לריצה בודדת: long-term לעובדות ותצורה יציבה, episodic לתקדימים קונקרטיים ("איך נפתרה בעיה דומה בעבר") שיכולים לקצר ריצות עתידיות.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>short-term הוא פשוט ה-Context של הריצה — אין אחסון חיצוני, נגיש כל עוד הריצה פעילה. long-term ו-episodic דורשים אחסון חיצוני ומנגנון אחזור: מידע נכתב לאחסון בסיום ריצה (או תוך כדי), ובתחילת ריצה חדשה רלוונטית, נשלף ומוזרק ל-Context. ההבדל המעשי בין long-term ל-episodic הוא סוג המידע — long-term שומר עובדות/העדפות כלליות, episodic שומר תיאור של משימה ופתרונה כתקדים קונקרטי לשליפה כשמזוהה דמיון למשימה חדשה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>agent פיתוח שזוכר long-term ש"הפרויקט משתמש ב-TypeScript מחמיר" (עובדה יציבה, נטענת בכל ריצה) שונה מ-episodic memory שזוכר "בפעם הקודמת שנדרש להוסיף endpoint דומה, הפתרון כלל גם עדכון תיעוד API" (תקדים ספציפי, נשלף רק כשמזוהה משימה דומה).</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להפריד באחסון בין long-term (עובדות יציבות) ל-episodic (תקדימי משימות), כדי שאחזור לא יערבב סוגי מידע שונים מהותית.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתמך רק על short-term ולצפות שה-agent "ילמד" בין ריצות בלי מנגנון אחסון חיצוני כלשהו — בלי long-term/episodic כל ריצה מתחילה מאפס.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>סיווג הזיכרון כאן משלים, לא חופף, את ה-<a href="03-memory-rag.html#memory-manager--from--06-agent-patterns.html%23agent-memory">Memory Manager</a> שנסקר בפרק 3: שם עסקנו במנגנון הטכני של ניהול חלון ה-Context (מה נשאר, מה מסוכם, מה נזרק) בתוך שיחה אחת; כאן ההבחנה היא ברמת סוג המידע ומשך חייו — בתוך ריצה, בין ריצות, או כתקדים ספציפי לשימוש עתידי.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>short-term = Context של הריצה הנוכחית; long-term = עובדות יציבות בין ריצות; episodic = תקדימי משימות ספציפיות.</li>
+            <li>long-term ו-episodic דורשים אחסון חיצוני ומנגנון אחזור — לא קורים מאליהם.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> Claude Code / Cursor Agent Mode — שילוב plan-and-execute עם human-in-the-loop</div>
+          <p>כלי agentic לכתיבת קוד ממחיש שילוב טבעי של כמה מהדפוסים שנסקרו בפרק. הבקשה ("הוסף בדיקות אינטגרציה לפיצ'ר X") עוברת תחילה שלב <a href="#plan-and-execute--from--06-agent-patterns.html%23real-world-example">plan-and-execute</a>: הכלי מציג תוכנית — אילו קבצים ייבדקו, אילו תרחישים יכוסו — לפני שהוא נוגע בקוד. כל תת-משימה בתוכנית מתבצעת בלולאת <a href="#react-pattern--from--06-agent-patterns.html%23real-world-example">ReAct</a> פנימית: נימוק גלוי על הצעד הבא, קריאת כלי, בחינת התוצאה, וחזרה. כשמגיעה פעולה בלתי-הפיכה — מחיקת קובץ בדיקה ישן, למשל, או הרצת פקודת terminal שמשנה תצורה — הריצה עוצרת בנקודת <a href="#human-in-the-loop--from--06-agent-patterns.html%23real-world-example">human-in-the-loop</a> ומחכה לאישור מפורש, בעוד עריכות קוד הפיכות ובדיקה של קבצים ממשיכות אוטומטית. אם קריאת כלי נכשלת (למשל timeout בהרצת בדיקות), מנגנון <a href="#agent-error-handling--from--06-agent-patterns.html%23real-world-example">טיפול בשגיאות</a> מנסה שוב עם backoff מוגבל לפני שהוא מדווח כשל מבוקר בחזרה ל-agent. לאחר כתיבת הבדיקות, שלב <a href="#reflexion--from--06-agent-patterns.html%23real-world-example">reflexion</a> מריץ אותן ובוחן את התוצאה — אם בדיקה נכשלת, הכשל מוזן בחזרה כהקשר לתיקון, לא כסימן לוותר. ואם הפרויקט כבר נתקל בעבר בדפוס דומה, <a href="#agent-memory--from--06-agent-patterns.html%23real-world-example">זיכרון episodic</a> עשוי לספק תקדים רלוונטי שמקצר את הריצה. יחד, אלו לא פיצ'רים נפרדים אלא שכבות של אותה לולאת agent בסיסית מפרק 5 — מובנית, שקופה, וניתנת לעצירה במקום הנכון.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#react-pattern">דפוס ReAct</a>
+      <a class="toc__link" href="#plan-and-execute">Plan-and-Execute</a>
+      <a class="toc__link" href="#reflexion">Reflexion</a>
+      <a class="toc__link" href="#orchestration-patterns">דפוסי תזמור Multi-Agent</a>
+      <a class="toc__link" href="#human-in-the-loop">Human-in-the-Loop</a>
+      <a class="toc__link" href="#agent-error-handling">טיפול בשגיאות בלולאת Agent</a>
+      <a class="toc__link" href="#agent-memory">זיכרון Agent</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

@@ -1,0 +1,259 @@
+@import url("fonts/heebo.css");
+@import url("fontawesome/css/all.min.css");
+
+:root {
+  --bg: #0F172A;
+  --bg-card: #1E293B;
+  --bg-card-hover: #24334a;
+  --border: #334155;
+  --text: #E2E8F0;
+  --text-muted: #94A3B8;
+  --accent: #3B82F6;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --font: "Heebo", "Segoe UI", sans-serif;
+  --radius: 10px;
+  --sidebar-w: 280px;
+  --toc-w: 240px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.75;
+  direction: rtl;
+}
+h1, h2, h3, h4 { font-weight: 700; color: #F8FAFC; line-height: 1.35; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; }
+
+/* --- Layout --- */
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr var(--toc-w);
+  min-height: 100vh;
+}
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: var(--sidebar-w) 1fr; }
+  .toc { display: none; }
+}
+@media (max-width: 780px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: fixed; inset-inline-start: -300px; transition: inset-inline-start .2s ease; z-index: 40; }
+  .sidebar.is-open { inset-inline-start: 0; }
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  background: var(--bg-card);
+  border-inline-start: 1px solid var(--border);
+  padding: 24px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; font-size: 1.1rem; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.sidebar__brand i { color: var(--accent); }
+.sidebar__nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sidebar__link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius);
+  color: var(--text-muted); font-size: .95rem;
+}
+.sidebar__link i { width: 18px; text-align: center; color: var(--accent); }
+.sidebar__link:hover { background: var(--bg-card-hover); color: var(--text); text-decoration: none; }
+.sidebar__link.is-active { background: var(--accent); color: #fff; }
+.sidebar__link.is-active i { color: #fff; }
+
+/* --- Header --- */
+.page-header {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(15, 23, 42, .92); backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.breadcrumb { color: var(--text-muted); font-size: .9rem; }
+.breadcrumb a { color: var(--text-muted); }
+.breadcrumb .current { color: var(--text); }
+.sidebar-toggle { display: none; background: none; border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); width: 36px; height: 36px; cursor: pointer; }
+@media (max-width: 780px) {
+  .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/* --- Content --- */
+.content { padding: 0 40px 80px; max-width: 1140px; }
+.chapter-hero { padding: 48px 0 32px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+.chapter-hero__eyebrow { color: var(--accent); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+.chapter-hero h1 { font-size: 2.2rem; margin: 8px 0; display: flex; align-items: center; gap: 14px; }
+.chapter-hero p { color: var(--text-muted); font-size: 1.05rem; }
+
+/* --- Chapter-level concept illustration (sits right below the intro) --- */
+.chapter-diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; margin: 0 0 40px; }
+.chapter-diagram__caption { color: var(--text-muted); font-size: .85rem; text-align: center; margin-top: 16px; }
+.chapter-diagram .flow-diagram { margin: 0; }
+.chapter-diagram .flow-step { background: var(--bg); }
+
+/* Nested hierarchy (Chapter 1: AI ⊃ ML ⊃ Deep Learning ⊃ LLM) — each level's
+   right edge (inline-start, in RTL) starts further in than the one before,
+   so the first (AI) leads all the others from the right; left edges stay
+   flush, producing a cascading funnel toward LLM. */
+.nest-diagram { display: flex; flex-direction: column; gap: 0; }
+.nest-diagram__level {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 20px; background: var(--bg);
+  margin-top: -1px;
+}
+.nest-diagram__level:nth-child(1) { width: 100%; margin-inline-start: 0; }
+.nest-diagram__level:nth-child(2) { width: 92%; margin-inline-start: 8%; }
+.nest-diagram__level:nth-child(3) { width: 84%; margin-inline-start: 16%; }
+.nest-diagram__level:nth-child(4) { width: 76%; margin-inline-start: 24%; }
+.nest-diagram__level span { font-weight: 700; color: #fff; }
+.nest-diagram__level small { color: var(--text-muted); display: block; margin-top: 2px; font-size: .82rem; }
+.nest-diagram__level:nth-child(1) { border-inline-start: 4px solid var(--accent); }
+.nest-diagram__level:nth-child(2) { border-inline-start: 4px solid var(--success); }
+.nest-diagram__level:nth-child(3) { border-inline-start: 4px solid var(--warning); }
+.nest-diagram__level:nth-child(4) { border-inline-start: 4px solid var(--danger); }
+
+/* Compare row (Chapter 4 naive vs advanced, Chapter 6 pattern showcase) */
+.compare-row { display: flex; flex-wrap: wrap; gap: 16px; }
+.compare-card { flex: 1 1 220px; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; background: var(--bg); }
+.compare-card__title { font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.compare-card__title i { color: var(--accent); }
+.compare-card p { color: var(--text-muted); font-size: .9rem; margin: 0; }
+.compare-row--vs { align-items: center; }
+.compare-row__sep { color: var(--text-muted); font-weight: 700; align-self: center; }
+
+.topic { margin: 56px 0; scroll-margin-top: 90px; }
+.topic__title { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
+.topic__title i { color: var(--accent); }
+
+.box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin: 14px 0; }
+.box__label { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; font-size: .95rem; }
+.box--what .box__label i { color: var(--accent); }
+.box--why .box__label i { color: var(--warning); }
+.box--how .box__label i { color: var(--success); }
+
+/* --- Term List: separates a paragraph that bundles multiple named concepts into distinct, scannable rows --- */
+.term-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.term-list li { border-inline-start: 3px solid var(--accent); padding-inline-start: 14px; }
+
+/* --- Glossary: alphabetical term/definition grid --- */
+.glossary-list { display: grid; grid-template-columns: 240px 1fr; column-gap: 24px; row-gap: 0; margin: 0; }
+.glossary-list dt {
+  font-weight: 700; color: #fff;
+  padding: 14px 0; border-top: 1px solid var(--border);
+}
+.glossary-list dd {
+  margin: 0; color: var(--text-muted);
+  padding: 14px 0; border-top: 1px solid var(--border);
+}
+.glossary-list dt:first-of-type, .glossary-list dd:first-of-type { border-top: none; }
+@media (max-width: 640px) {
+  .glossary-list { grid-template-columns: 1fr; }
+  .glossary-list dt { padding-bottom: 4px; }
+  .glossary-list dd { padding-top: 0; border-top: none; }
+}
+.term-list li strong { color: #F8FAFC; }
+.term-list--why li { border-inline-start-color: var(--warning); }
+.term-list--how li { border-inline-start-color: var(--success); }
+
+.example-card { background: linear-gradient(135deg, #1E293B, #172033); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin: 16px 0; }
+.example-card__label { font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.example-card table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+.example-card th, .example-card td { border: 1px solid var(--border); padding: 8px 10px; text-align: right; }
+.example-card th { background: rgba(59, 130, 246, .12); color: #fff; }
+
+/* --- Flow Diagram --- */
+.flow-diagram { display: flex; flex-direction: column; align-items: stretch; gap: 0; margin: 24px 0; }
+.flow-step { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
+.flow-step__label { font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+.flow-step__label i { color: var(--accent); }
+.flow-step__desc { color: var(--text-muted); font-size: .9rem; margin-top: 4px; }
+.flow-arrow { align-self: center; color: var(--accent); font-size: 1.3rem; padding: 6px 0; }
+@media (min-width: 640px) {
+  .flow-diagram--horizontal { flex-direction: row; align-items: stretch; flex-wrap: wrap; }
+  .flow-diagram--horizontal .flow-step { flex: 1 1 160px; }
+  .flow-diagram--horizontal .flow-arrow { align-self: center; }
+}
+
+/* --- Practices / Mistakes --- */
+.practices { border-radius: var(--radius); padding: 16px 20px; margin: 14px 0; list-style: none; }
+.practices li { position: relative; padding-inline-start: 26px; margin: 8px 0; }
+.practices li i { position: absolute; inset-inline-start: 0; top: 4px; }
+.practices--good { background: rgba(34, 197, 94, .08); border: 1px solid rgba(34, 197, 94, .3); }
+.practices--good li i { color: var(--success); }
+.practices--bad { background: rgba(239, 68, 68, .08); border: 1px solid rgba(239, 68, 68, .3); }
+.practices--bad li i { color: var(--danger); }
+details.mistakes summary { cursor: pointer; font-weight: 700; padding: 10px 4px; color: var(--danger); list-style: none; display: flex; align-items: center; gap: 8px; }
+details.mistakes summary::-webkit-details-marker { display: none; }
+details.mistakes summary i.fa-chevron-left { margin-inline-start: auto; transition: transform .15s; }
+details.mistakes[open] summary i.fa-chevron-left { transform: rotate(-90deg); }
+
+/* --- Insight / Remember --- */
+.insight { background: rgba(245, 158, 11, .08); border: 1px solid rgba(245, 158, 11, .35); border-radius: var(--radius); padding: 16px 20px; margin: 18px 0; }
+.insight__label { font-weight: 700; color: var(--warning); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.remember { background: var(--bg-card); border-inline-start: 4px solid var(--accent); border-radius: var(--radius); padding: 18px 22px; margin-top: 20px; }
+.remember h4 { margin-top: 0; }
+.remember ul { margin: 8px 0 0; padding-inline-start: 20px; }
+.remember li { margin: 6px 0; }
+
+/* --- TOC --- */
+.toc { padding: 32px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.toc__title { color: var(--text-muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+.toc__link { display: block; padding: 6px 10px; border-inline-start: 2px solid transparent; color: var(--text-muted); font-size: .88rem; }
+.toc__link.is-active { border-inline-start-color: var(--accent); color: var(--accent); }
+
+/* --- Code blocks --- */
+pre[class*="language-"] { border-radius: var(--radius); border: 1px solid var(--border); margin: 16px 0; }
+
+/* --- Back to top --- */
+.back-to-top {
+  position: fixed; bottom: 24px; inset-inline-end: 24px;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transform: translateY(10px);
+  transition: opacity .2s, transform .2s; cursor: pointer; z-index: 30;
+}
+.back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+/* --- Cross-chapter reference return link --- */
+.back-ref {
+  position: fixed; bottom: 24px; inset-inline-start: 24px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #fff; border: none;
+  padding: 10px 18px; border-radius: 999px;
+  font-size: .88rem; font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  z-index: 30; text-decoration: none;
+  animation: back-ref-in .25s ease;
+}
+.back-ref:hover { background: #2563eb; text-decoration: none; }
+@keyframes back-ref-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media print { .back-ref { display: none !important; } }
+
+/* --- Cards (index.html chapter grid) --- */
+.chapter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin: 32px 0; }
+.chapter-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; display: block; color: var(--text); }
+.chapter-card:hover { border-color: var(--accent); text-decoration: none; }
+.chapter-card i { color: var(--accent); font-size: 1.4rem; margin-bottom: 10px; display: block; }
+.chapter-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.chapter-card p { color: var(--text-muted); font-size: .88rem; margin: 0; }
+
+/* --- Print --- */
+@media print {
+  .sidebar, .toc, .page-header, .back-to-top, .sidebar-toggle { display: none !important; }
+  .layout { display: block; }
+  body { background: #fff; color: #111; }
+  .box, .example-card, .flow-step, .remember { background: #f4f4f4; border-color: #ccc; color: #111; }
+  a { color: #111; text-decoration: underline; }
+  .topic { page-break-inside: avoid; }
+}

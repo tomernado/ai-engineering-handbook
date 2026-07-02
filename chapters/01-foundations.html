@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יסודות — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link is-active" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">יסודות</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 1</div>
+        <h1><i class="fas fa-cubes"></i> יסודות</h1>
+        <p>לפני עבודה עם APIs, RAG או Agents, נדרשת הבנה מדויקת של מה שקורה בתוך המודל: איך הוא חוזה טקסט, מהו טוקן, מה תופס מקום בחלון ההקשר, ולמה הוא לפעמים "ממציא" עובדות. הפרק הזה בונה את שכבת היסוד שכל הפרקים הבאים נשענים עליה.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="nest-diagram">
+          <div class="nest-diagram__level"><span>Artificial Intelligence</span><small>כל מערכת שמדמה התנהגות אינטליגנטית</small></div>
+          <div class="nest-diagram__level"><span>Machine Learning</span><small>לומד דפוסים מנתונים, לא מתוכנת במפורש</small></div>
+          <div class="nest-diagram__level"><span>Deep Learning</span><small>רשתות נוירונים עמוקות (multi-layer)</small></div>
+          <div class="nest-diagram__level"><span>Large Language Model</span><small>Deep Learning ממוקד טקסט, מבוסס Transformer</small></div>
+        </div>
+        <div class="chapter-diagram__caption">כל שכבה מקוננת בקודמתה — LLM הוא המקרה הפרטי והספציפי ביותר בהיררכיה כולה.</div>
+      </div>
+
+      <section class="topic" id="ai-ml-dl">
+        <h2 class="topic__title"><i class="fas fa-layer-group"></i> AI, ML, Deep Learning ו-LLM</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>ארבעה מונחים בהיררכיה מקוננת, מהרחב ביותר לספציפי ביותר:</p>
+          <ul class="term-list">
+            <li><strong>Artificial Intelligence (AI)</strong> — התחום הרחב ביותר: כל מערכת שמדמה התנהגות אינטליגנטית.</li>
+            <li><strong>Machine Learning (ML)</strong> — תת-תחום של AI שבו המערכת לומדת דפוסים מנתונים במקום שיתוכנתו במפורש.</li>
+            <li><strong>Deep Learning</strong> — תת-תחום של ML המבוסס על רשתות נוירונים עמוקות (multi-layer).</li>
+            <li><strong>Large Language Model (LLM)</strong> — סוג ספציפי של מודל Deep Learning, מבוסס ארכיטקטורת Transformer, שאומן על כמויות עצומות של טקסט.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>מהנדס AI שעובד ברמת האפליקציה (API calls, prompts, RAG, agents) לא נוגע ברוב המקרים ב-ML או ב-Deep Learning הקלאסיים — אך הבנת ההיררכיה קובעת ציפיות נכונות: LLM הוא תוצר של תהליך אימון סטטיסטי, לא מסד ידע לוגי. זה מסביר מראש תופעות כמו הזיות, רגישות לניסוח, וחוסר ודאות בתשובות — הן לא "באגים", אלא תכונות מובנות של המשפחה שממנה המודל מגיע.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל שכבה מצרה את השיטה של קודמתה:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>AI</strong> — כולל גם מערכות מבוססות-כללים (rule-based) שאינן לומדות כלל.</li>
+            <li><strong>ML</strong> — מצמצם לשיטות שלומדות מנתונים (רגרסיה, עצי החלטה, SVM ועוד).</li>
+            <li><strong>Deep Learning</strong> — מצמצם עוד לרשתות נוירונים בעלות שכבות רבות, המסוגלות ללמוד ייצוגים היררכיים מורכבים.</li>
+            <li><strong>LLM</strong> — יישום ספציפי של Deep Learning על טקסט, עם מטרת אימון אחת: חיזוי הטוקן הבא ברצף.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>מנוע שחמט מבוסס מינימקס וכללים הוא AI שאינו ML. מסנן ספאם שלומד מדוגמאות מתויגות הוא ML קלאסי. מערכת זיהוי תמונות מבוססת CNN היא Deep Learning. Claude ו-GPT הם LLM — Deep Learning ממוקד טקסט.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתייחס ל-LLM כמודל סטטיסטי-הסתברותי, לא כמסד נתונים לוגי.</li>
+          <li><i class="fas fa-check"></i> להשתמש במונחים המדויקים בתקשורת עם צוותי מוצר והנהלה — "AI" כללי מדי לרוב הדיונים הטכניים.</li>
+          <li><i class="fas fa-check"></i> לזכור שכל מגבלה של LLM (הזיות, context מוגבל) נובעת מהיותו מודל שאומן, לא תוכנה דטרמיניסטית.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשתמש ב-"AI" ו-"LLM" כמילים נרדפות בתיעוד טכני, מה שמטשטש החלטות ארכיטקטורה.</li>
+            <li><i class="fas fa-xmark"></i> לצפות שמודל LLM יתנהג כמו מנוע חוקים דטרמיניסטי (אותה קלט = תמיד אותה פלט).</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>רוב הכשלים ה"מסתוריים" שמדווחים עליהם צוותי מוצר (תשובות לא עקביות, רגישות לניסוח פרומפט) פשוט נעלמים כשזוכרים שמדובר במודל הסתברותי שממקם את עצמו בתוך משפחת Deep Learning — לא בבאג בקוד האינטגרציה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>AI ⊃ ML ⊃ Deep Learning ⊃ LLM — כל שלב מצרה את גישת הפתרון.</li>
+            <li>LLM הוא תוצר אימון סטטיסטי, לא מנוע לוגי.</li>
+            <li>ההיררכיה מסבירה מראש תופעות כמו הזיות ואי-עקביות.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="llm-next-token">
+        <h2 class="topic__title"><i class="fas fa-arrow-right-long"></i> LLM כמנוע חיזוי הטוקן הבא</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>המטרה היחידה שעליה LLM מאומן היא: בהינתן רצף טקסט, לחזות מהו הטוקן (יחידת הטקסט) הסביר ביותר להופיע אחריו. המודל חוזר על פעולה זו שוב ושוב — כל טוקן שנוצר מתווסף לרצף הקלט ומשמש בסיס לחיזוי הטוקן הבא — עד לייצור תשובה שלמה.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>זו נקודת המוצא להבנת כל התנהגות של LLM. שיחה, כתיבת קוד, תרגום, סיכום, וניתוח — כל אלה אינם "יכולות" נפרדות שתוכנתו במפורש, אלא תופעה מתפרצת (emergent) מיכולת חיזוי טקסט שאומנה על היקף עצום של דוגמאות אנושיות. מהנדס שמפנים את זה מפסיק לצפות ש"המודל יודע" דברים במובן העובדתי, ומתחיל לחשוב במונחי "מה הטקסט הסביר ביותר להמשיך את ההקשר הזה".</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>בכל צעד, המודל מחשב התפלגות הסתברות על פני כל אוצר המילים (vocabulary) האפשרי לטוקן הבא, בהתבסס על כל הטקסט שקדם לו (הקלט וכל מה שהמודל כבר ייצר). טוקן נבחר מההתפלגות לפי פרמטרי הדגימה (ראו נושא Sampling), מתווסף לרצף, והתהליך חוזר על עצמו (autoregressive generation) עד לתנאי עצירה — טוקן סיום, הגעה ל-Max Tokens, או עצירה מבוקרת (stop sequence).</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כתיבת קוד Python על ידי Claude אינה "הבנת תכנות" במובן שמהנדס אנושי מבין, אלא חיזוי רציף של הטוקן הסביר הבא בהינתן דפוסים שנלמדו ממיליוני קבצי קוד — התוצאה מספיק אמינה לשימוש הנדסי בזכות עוצמת הדגימה ולא בזכות מנגנון לוגי נפרד.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-keyboard"></i> קלט</div><div class="flow-step__desc">רצף טקסט קיים (prompt)</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-chart-simple"></i> חיזוי</div><div class="flow-step__desc">התפלגות הסתברות על אוצר המילים</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-dice"></i> דגימה</div><div class="flow-step__desc">בחירת טוקן בודד</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-rotate"></i> חזרה</div><div class="flow-step__desc">הטוקן מתווסף לרצף, התהליך חוזר</div></div>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתייחס לכל תשובה כהמשך טקסט סביר, ולא כתוצאה של תהליך חשיבה עצמאי.</li>
+          <li><i class="fas fa-check"></i> לנסח פרומפטים כך שההמשך "הסביר ביותר" יתאם למה שרוצים בפועל.</li>
+          <li><i class="fas fa-check"></i> לזכור שהמודל לא "יודע" מתי הוא טועה — הוא רק ממשיך טקסט שנשמע נכון.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לייחס למודל "כוונה" או "הבנה" במובן האנושי, מה שמוביל לציפיות שגויות מהמערכת.</li>
+            <li><i class="fas fa-xmark"></i> להתעלם מכך שניסוח הקלט משפיע ישירות על הסבירות של כל המשך אפשרי — ולכן על איכות הפלט.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>עיצוב פרומפט טוב הוא בעצם הנדסה של "מה ההמשך הסביר ביותר לטקסט הזה" — לא שכנוע של ישות חושבת. שינוי מבנה, דוגמאות (few-shot), או פורמט משנה את התפלגות ההסתברות עצמה, ולכן הוא הכלי החזק ביותר לשליטה באיכות הפלט מבלי לגעת במודל.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>המטרה היחידה של אימון LLM: חיזוי הטוקן הבא.</li>
+            <li>הייצור הוא אוטורגרסיבי — טוקן אחר טוקן, בהתבסס על כל מה שקדם.</li>
+            <li>כל יכולת נראית-לעין (שיחה, קוד, תרגום) היא תופעה מתפרצת מהמטרה הזו.</li>
+            <li>אין למודל מנגנון נפרד לבדיקת אמת — רק המשכיות סבירה סטטיסטית.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="tokens">
+        <h2 class="topic__title"><i class="fas fa-puzzle-piece"></i> Tokens</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>Token הוא יחידת העבודה הבסיסית של LLM — לא מילה שלמה ולא אות בודדת, אלא יחידת תת-מילה (subword) שנקבעת על ידי אלגוריתם tokenization (כגון BPE — Byte Pair Encoding). מילה נפוצה עשויה להיות טוקן אחד; מילה נדירה, שם פרטי, או מונח טכני מתפצלים למספר טוקנים.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>טוקנים הם יחידת המדידה שממנה נגזרים כמעט כל המגבלות והעלויות המעשיות: תמחור ה-API נקבע לפי מספר טוקנים בקלט ובפלט, גודל חלון ההקשר נמדד בטוקנים, וזמן התגובה (latency) תלוי במספר הטוקנים שיש לייצר. הבנה שגויה של יחס טוקן-למילה מובילה להערכות שגויות של עלות, קיבולת, ומהירות.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>אלגוריתם ה-tokenizer בונה אוצר מילים קבוע מראש (עשרות אלפי טוקנים) מתוך ניתוח סטטיסטי של טקסט אימון עצום, כך שרצפי תווים נפוצים מקבלים טוקן ייעודי ורצפים נדירים מתפרקים לרכיבים קטנים יותר. באנגלית מילה ממוצעת שווה בקירוב 1.3 טוקנים; בעברית ובשפות שאינן לטיניות היחס גרוע יותר בדרך כלל, מכיוון שרוב אוצרות המילים של המודלים המובילים מוטים לאנגלית — מה שמייקר בפועל שימוש בעברית לעומת אנגלית עבור אותו תוכן.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>המילה "hello" עשויה להיות טוקן אחד, בעוד "tokenization" מתפצלת למספר טוקנים ("token", "ization"). משפט בעברית זהה במשמעותו למשפט מקביל באנגלית עלול לצרוך משמעותית יותר טוקנים — נתון קריטי בעת תכנון תקציב API למוצר דובר עברית.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להריץ ספירת טוקנים בפועל (tokenizer של הספק) בזמן תכנון עלויות, ולא להעריך "לפי מילים".</li>
+          <li><i class="fas fa-check"></i> לקחת בחשבון שתוכן בעברית/שפות לא-לטיניות צורך יותר טוקנים מאשר אנגלית מקבילה.</li>
+          <li><i class="fas fa-check"></i> לצמצם טקסט מיותר בפרומפט (הקדמות, חזרות) כדי לחסוך בעלות ובזמן תגובה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להניח ש-1 מילה = 1 טוקן, מה שמוביל להערכת עלות וקיבולת שגויה.</li>
+            <li><i class="fas fa-xmark"></i> להתעלם מהעלות והלטנסי של טוקני הפלט — לעיתים משמעותיים יותר מאלו של הקלט.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>כאשר מוצר מיועד לשוק דובר עברית, כדאי לבדוק בפועל את יחס הטוקנים לתו של ה-tokenizer הרלוונטי לפני קביעת תקציב API — הפרש של פי 1.5–2 טוקנים לעומת אנגלית משפיע ישירות הן על עלות והן על כמות התוכן שנכנס לחלון הקשר נתון.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Token = יחידת תת-מילה, לא מילה שלמה.</li>
+            <li>עלות, Context Window ו-Latency נמדדים כולם בטוקנים.</li>
+            <li>שפות לא-אנגליות, כולל עברית, בדרך כלל צורכות יותר טוקנים לאותו תוכן.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="context-window">
+        <h2 class="topic__title"><i class="fas fa-window-maximize"></i> Context Window</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>חלון ההקשר הוא כמות הטוקנים המרבית שהמודל יכול "לראות" בבת אחת — קלט ופלט יחד — בקריאת API בודדת. מוגדר כמספר קבוע לכל מודל (למשל עשרות עד מאות אלפי טוקנים בהתאם לספק ולדגם).</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>כל מידע שהמודל אמור להתייחס אליו — הנחיות, שיחה קודמת, מסמכים רלוונטיים, תוצאות כלים — חייב להיכנס לחלון הזה. תכנון גרוע של תוכן החלון גורם לחיתוך מידע קריטי, לעלות מיותרת, ולפגיעה באיכות התשובה גם כאשר טכנית "יש עוד מקום".</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>חלון ההקשר מורכב בדרך כלל מכמה רכיבים הנשלחים יחד בכל קריאה:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>System Prompt</strong> — הנחיות קבועות להתנהגות המודל.</li>
+            <li><strong>User Prompt</strong> — הבקשה הנוכחית.</li>
+            <li><strong>Memory</strong> — היסטוריית שיחה קודמת.</li>
+            <li><strong>תוצאות RAG</strong> — קטעי מידע שאוחזרו ממאגר ידע.</li>
+            <li><strong>תוצאות Tool Calls</strong> — פלטים מכלים חיצוניים שהמודל הפעיל.</li>
+          </ul>
+          <p>כאשר סכום הטוקנים של כל הרכיבים חורג מהמגבלה, ה-API מחזיר שגיאה או שהמידע הישן ביותר נחתך — תלוי במימוש שכבת האפליקציה, לא במודל עצמו.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזר קוד (coding assistant) שמזין את כל הקבצים הרלוונטיים בפרויקט, את היסטוריית השיחה, ותוצאות הרצת טסטים לתוך אותה קריאת API — כל אלה מתחרים על אותו תקציב טוקנים קבוע, ולכן דורשים תעדוף מודע.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לתעדף רכיבי הקשר לפי רלוונטיות לבקשה הנוכחית, לא לזרוק "הכול" לתוך הפרומפט.</li>
+          <li><i class="fas fa-check"></i> לנטר בפועל את מספר הטוקנים הנשלחים בכל קריאה, לא רק את גודל הפלט.</li>
+          <li><i class="fas fa-check"></i> להפריד System Prompt קבוע ותמציתי מתוכן דינמי שמשתנה מבקשה לבקשה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להזין מסמכים שלמים לתוך ה-Context "ליתר ביטחון" במקום לאחזר קטעים רלוונטיים בלבד.</li>
+            <li><i class="fas fa-xmark"></i> להתעלם מכך שגם הפלט הצפוי נספר בתוך אותה מגבלת חלון.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>חלון הקשר גדול יותר אינו תחליף לניהול הקשר טוב — הוא רק דוחה את הצורך בו. גם במודלים עם חלונות של מאות אלפי טוקנים, שליחת מידע לא רלוונטי פוגעת באיכות התשובה (ראו lost-in-the-middle בנושא הבא) ומייקרת כל קריאה שלא לצורך.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>חלון ההקשר כולל: System Prompt, User Prompt, Memory, RAG, Tool Results.</li>
+            <li>קלט ופלט חולקים את אותה מגבלת טוקנים.</li>
+            <li>חריגה מהחלון גורמת לשגיאה או לחיתוך מידע, בהתאם למימוש.</li>
+            <li>חלון גדול מפחית לחץ אך לא פותר את הצורך בתעדוף.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="context-compression">
+        <h2 class="topic__title"><i class="fas fa-compress"></i> דחיסת הקשר וניהול שיחות ארוכות</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>טכניקות לצמצום נפח ההקשר הנשלח למודל תוך שמירה על המידע החיוני:</p>
+          <ul class="term-list">
+            <li><strong>Summarization</strong> — סיכום היסטוריית שיחה לגרסה מקוצרת.</li>
+            <li><strong>Sliding Window</strong> — שמירת רק ה-N ההודעות/טוקנים האחרונים.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שיחות ארוכות צוברות טוקנים במהירות ומעלות עלות, לטנסי, וסיכון לחריגה מהחלון — אך הבעיה המרכזית אינה רק כמותית: מודלים סובלים מתופעת lost-in-the-middle, שבה מידע הממוקם באמצע הקשר ארוך מקבל פחות תשומת לב מהמודל ממידע בתחילת או בסוף הרצף.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>Summarization מפעיל קריאת LLM נוספת שמכווצת חלקים ישנים של השיחה לתקציר קצר שמחליף אותם. Sliding Window פשוט משמיט הודעות ישנות מעבר לגבול קבוע, לעיתים בשילוב עם שמירת ההודעה הראשונה (system context) לצמיתות.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזרי שיחה כמו Claude ו-ChatGPT מפעילים מנגנוני סיכום או קיצוץ אוטומטיים כאשר שיחה חורגת מגבול מסוים, כדי לשמר רציפות שיחה ארוכה בלי לשלוח את כל ההיסטוריה בכל פנייה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש בסיכום היררכי — לסכם ולא רק לחתוך — כשמדובר במידע קריטי מוקדם בשיחה.</li>
+          <li><i class="fas fa-check"></i> למקם מידע קריטי בתחילת או בסוף ה-Context, לא באמצע, גם בחלונות גדולים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתמך על "חלון גדול יותר" כפתרון יחיד לשיחות ארוכות, במקום ניהול אקטיבי.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הגדלת חלון ההקשר פותרת בעיית קיבולת, לא בעיית איכות. גם עם מיליון טוקנים פנויים, מידע קבור באמצע קלט ארוך נצפה בפחות תשומת לב — ניהול הקשר אקטיבי (מה נכנס, איפה, ומתי מסכמים) נשאר נדרש בכל גודל חלון.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Summarization ו-Sliding Window הן שתי הטכניקות המרכזיות.</li>
+            <li>lost-in-the-middle: מידע באמצע הקשר ארוך נצפה פחות.</li>
+            <li>Context גדול ≠ בעיית ניהול הקשר נפתרה.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="sampling-params">
+        <h2 class="topic__title"><i class="fas fa-sliders"></i> Temperature, Top-P, Max Tokens</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שלושה פרמטרים שנשלחים בכל קריאת API ושולטים על אופן בחירת הטוקן הבא מתוך התפלגות ההסתברות שהמודל מחשב, ועל אורך התשובה:</p>
+          <ul class="term-list">
+            <li><strong>Temperature</strong> — קובע את מידת האקראיות בבחירה.</li>
+            <li><strong>Top-P</strong> (nucleus sampling) — מגביל את הבחירה לתת-קבוצה מצטברת של הטוקנים הסבירים ביותר.</li>
+            <li><strong>Max Tokens</strong> — קובע תקרת אורך לפלט.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>אותו פרומפט יכול לייצר תשובות שונות מאוד בהתאם לפרמטרים האלה. משימות שדורשות דיוק ועקביות (חילוץ נתונים, קוד, החזרת JSON מובנה) זקוקות להתנהגות שמרנית וצפויה; משימות יצירתיות (כתיבה, סיעור מוחות) נהנות מגיוון. שליטה נכונה בפרמטרים היא כלי הנדסי, לא כוונון קוסמטי.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל פרמטר פועל בשלב אחר של תהליך הבחירה:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>Temperature</strong> — נמוך (קרוב ל-0) מחדד את ההתפלגות לכיוון הטוקנים הסבירים ביותר, והתוצאה עקבית וחוזרת על עצמה; גבוה משטח את ההתפלגות ומגדיל את הסיכוי לבחירת טוקנים פחות צפויים, והתוצאה מגוונת ולעיתים יצירתית יותר, אך פחות אמינה עובדתית.</li>
+            <li><strong>Top-P</strong> — חותך את התפלגות המועמדים לטוקן הבא לקבוצה המצטברת המינימלית שמכסה אחוז P מההסתברות הכוללת, ורק בתוכה מתבצעת הדגימה.</li>
+            <li><strong>Max Tokens</strong> — לא משפיע על איכות הבחירה אלא עוצר את הייצור בכוח לאחר מספר טוקנים נתון — חיתוך "באמצע המשפט" אם הוגדר נמוך מדי.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>משימת חילוץ שדות JSON ממסמך משפטי — Temperature 0 כדי להבטיח עקביות מקסימלית. כתיבת רעיונות לקמפיין שיווקי — Temperature 0.8–1 לגיוון. שירות שמחזיר תשובות קצרות בצ'אט — Max Tokens נמוך יחסית כדי למנוע פלט ארוך ויקר מיותר.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> Temperature נמוך (0–0.3) למשימות עובדתיות, מובנות, או קריטיות לדיוק.</li>
+          <li><i class="fas fa-check"></i> Temperature גבוה יותר (0.7–1) למשימות יצירתיות שבהן גיוון רצוי.</li>
+          <li><i class="fas fa-check"></i> לכוונן בדרך כלל Temperature או Top-P — לא את שניהם בו-זמנית לקיצון, כדי לשמור על שליטה חזויה.</li>
+          <li><i class="fas fa-check"></i> להגדיר Max Tokens בהתאם לאורך התשובה הצפוי, לא רק כערך מקסימלי גנרי.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשאיר Temperature ברירת מחדל למשימות שדורשות פלט מובנה ועקבי (כגון JSON), מה שגורם לשונות מיותרת בין ריצות.</li>
+            <li><i class="fas fa-xmark"></i> להגדיר Max Tokens נמוך מדי ולקבל תשובות חתוכות שנראות כמו כשל במודל.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>Temperature 0 מפחית שונות אך אינו מבטיח דטרמיניזם מוחלט — גורמים כמו עומס שרתים ואופטימיזציות חישוב יכולים עדיין לייצר הבדלים זעירים בין ריצות זהות. עבור מערכות שדורשות שחזוריות מלאה (טסטים אוטומטיים, אודיטים), יש להוסיף שכבת ולידציה שאינה תלויה בדטרמיניזם של הדגימה עצמה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Temperature: נמוך = עקבי, גבוה = מגוון/יצירתי.</li>
+            <li>Top-P מגביל את מאגר הטוקנים המועמדים לפני הדגימה.</li>
+            <li>Max Tokens קובע תקרת אורך פלט — לא איכות.</li>
+            <li>אין להשאיר ברירות מחדל למשימות רגישות לעקביות.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="streaming">
+        <h2 class="topic__title"><i class="fas fa-water"></i> Streaming</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מסירת התשובה טוקן-אחר-טוקן ברגע שנוצרים, במקום להמתין לפלט המלא ולהחזיר אותו בבת אחת.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>תשובות ארוכות עלולות לקחת שניות ארוכות להשלמה; Streaming מציג טקסט מתגלגל מיד, מה שמצמצם drasticamente את זמן ה-perceived latency ומשפר חוויית משתמש גם כשזמן הסיום הכולל זהה.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ה-API פותח חיבור מסוג Server-Sent Events (SSE) או דומה, ושולח כל טוקן (או chunk קטן) ברגע ייצורו; צד הלקוח מרנדר את הטקסט בהדרגה תוך כדי קבלה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>ChatGPT ו-Claude מציגים תשובה "נכתבת" בזמן אמת — טכנית זהו Streaming, לא אפקט ויזואלי מלאכותי.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להפעיל Streaming בכל ממשק משתמש אינטראקטיבי שבו התשובה עלולה לקחת יותר משנייה-שתיים.</li>
+          <li><i class="fas fa-check"></i> לטפל בניתוק חיבור באמצע Stream כשגיאה נפרדת מתשובה שגויה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לנסות לבצע ולידציה/parsing מובנה (כגון JSON) על הפלט תוך כדי Streaming לפני שהתשובה הושלמה במלואה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>Streaming משפר חוויית משתמש נתפסת אך לא מקצר את זמן החישוב הכולל — ולעיתים אף מייקר תשתית (חיבורים פתוחים ממושכים). יש לשקול אותו כשיפור UX, לא כאופטימיזציית ביצועים.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Streaming = מסירת טוקנים בהדרגה, לא חישוב מהיר יותר.</li>
+            <li>משפר latency נתפס, לא latency אמיתי כולל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="inference">
+        <h2 class="topic__title"><i class="fas fa-microchip"></i> Inference לעומת Training</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שני שלבים נפרדים בחיי מודל:</p>
+          <ul class="term-list">
+            <li><strong>Inference</strong> — שלב הרצת מודל מאומן על קלט חדש כדי לקבל פלט; זהו כל מה שקורה בקריאת API.</li>
+            <li><strong>Training</strong> — התהליך הנפרד, היקר בהרבה, שבו משקלי המודל נלמדים מנתונים.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>מהנדס AI ברמת האפליקציה כמעט אף פעם לא מאמן מודלים — הוא צורך אותם ב-Inference בלבד. הבחנה זו קובעת ציפיות: קריאת API לא "מלמדת" את המודל דבר לגבי שיחות עתידיות (אלא אם הופעל מנגנון fine-tuning/memory נפרד ומפורש).</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>Training</strong> — המודל עובר על נתונים תוך עדכון משקלים חוזר לאורך זמן ממושך ומשאבי חישוב עצומים.</li>
+            <li><strong>Inference</strong> — המשקלים קפואים לחלוטין; הקריאה רק מזינה קלט דרך הרשת הקבועה ומקבלת פלט — פעולה מהירה יחסית וזולה בהרבה מ-Training.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כל קריאת API ל-Claude או GPT היא Inference בלבד — המודל אינו "לומד" מהשיחה שלכם, אלא אם המידע נשמר במפורש (Memory/RAG) ומוזן מחדש בקריאה הבאה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לא להניח שהמודל "זוכר" שיחות בין קריאות API נפרדות ללא ניהול Memory מפורש.</li>
+          <li><i class="fas fa-check"></i> להבחין בעלויות: Training הוא השקעה חד-פעמית יקרה; Inference הוא עלות שוטפת לכל קריאה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבלבל בין "המודל למד מהשיחה הזו" (שגוי ב-Inference רגיל) לבין שמירת הקשר באפליקציה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>כשמשתמש אומר "תזכור את זה להבא", האפליקציה, לא המודל, אחראית לשמור את המידע (Memory/DB) ולהזין אותו מחדש בקריאה עתידית — Inference כשלעצמו הוא stateless לחלוטין.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Inference = הרצה על קלט חדש; Training = למידת המשקלים.</li>
+            <li>Inference הוא stateless — לא זוכר בין קריאות ללא מנגנון חיצוני.</li>
+            <li>מהנדס אפליקציה עובד כמעט תמיד ברמת Inference בלבד.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="hallucinations">
+        <h2 class="topic__title"><i class="fas fa-ghost"></i> Hallucinations</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>תופעה שבה המודל מייצר טקסט שנשמע בטוח ומגובש, אך מכיל עובדות שגויות, מקורות בדויים, או פרטים שאינם קיימים במציאות.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>הזיות הן הסיכון המרכזי בפריסת LLM בפרודקשן — ציטוט חוק לא קיים, מספר סטטיסטי מומצא, או API שלא קיים בקוד שנוצר, עלולים לגרום נזק אמיתי אם אינם נבדקים. הבנת המקור מאפשרת בניית מנגנוני צמצום נכונים במקום לנסות "לתקן" את המודל עצמו.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>הזיה נובעת ישירות מהעיקרון בבסיס נושא #2: המודל תמיד ממשיך את הטקסט הסביר ביותר סטטיסטית — לא בהכרח את הטקסט הנכון עובדתית. כאשר אין למודל מידע מבוסס על השאלה, הוא עדיין ימשיך לייצר טוקן-אחר-טוקן בביטחון לשוני זהה לזה של תשובה נכונה, מכיוון שאין למנגנון הבסיסי הבחנה מובנית בין "יודע" ל"מנחש". שלוש הגישות המרכזיות לצמצום:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>RAG</strong> — הזנת מידע מאומת רלוונטי כך שהתשובה תתבסס עליו ולא על "זיכרון" פנימי של המודל.</li>
+            <li><strong>Tools</strong> — הפעלת כלים חיצוניים (חיפוש, מחשבון, API) לקבלת עובדות מדויקות במקום ניחוש.</li>
+            <li><strong>Validation</strong> — בדיקה אוטומטית או אנושית של הפלט לפני שהוא מגיע למשתמש הסופי.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>Perplexity מצמצם הזיות באמצעות ציטוט מקורות: כל טענה בתשובה מקושרת למאמר מקור שאוחזר בזמן אמת, כך שהמשתמש יכול לוודא את הטענה במקום להסתמך על ביטחון סגנוני בלבד.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש ב-RAG בכל תחום שבו דיוק עובדתי קריטי, במקום להסתמך על "ידע" גלום של המודל.</li>
+          <li><i class="fas fa-check"></i> לחייב את המודל לצטט מקור לכל טענה עובדתית, ולאמת שהמקור אכן קיים ותומך בטענה.</li>
+          <li><i class="fas fa-check"></i> להפעיל שכבת Validation נפרדת (regex, סכמה, בדיקת מודל שני) לפני שהפלט נחשף למשתמש בתרחישים רגישים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לסמוך על ביטחון הניסוח של התשובה כאינדיקציה לנכונותה — למודל אין קורלציה מובנית בין השניים.</li>
+            <li><i class="fas fa-xmark"></i> להניח ש-Temperature 0 "פותר" הזיות — הוא רק מפחית שונות, לא מבטיח דיוק עובדתי.</li>
+            <li><i class="fas fa-xmark"></i> לפרוס מוצר בתחום קריטי (רפואי, משפטי, פיננסי) ללא שכבת אימות עובדתית חיצונית למודל.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>אי אפשר "לתקן" הזיות ברמת המודל בלבד מכיוון שהן נובעות ממנגנון הייצור הבסיסי עצמו (חיזוי סביר, לא אימות אמת). כל אסטרטגיית צמצום אפקטיבית פועלת ברמת המערכת סביב המודל — RAG, Tools, Validation — ולא ברמת prompt engineering גרידא.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הזיה = טקסט סביר סטטיסטית, לא בהכרח נכון עובדתית.</li>
+            <li>המקור: המודל תמיד "ממשיך טקסט", אין לו מנגנון אימות אמת מובנה.</li>
+            <li>צמצום אפקטיבי דורש שכבות מערכת: RAG, Tools, Validation.</li>
+            <li>ביטחון לשוני בתשובה אינו אינדיקציה לדיוק עובדתי.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> Perplexity</div>
+          <p>Perplexity משלב שלושה מהמושגים שבפרק זה כדי לפתור בעיה אחת: הזיות במנוע חיפוש מבוסס LLM. כל שאילתה מפעילה חיפוש בזמן אמת (מקטין תלות ב"זיכרון" הגלום של המודל, המבוסס רק על חיזוי טוקן סביר), התוצאות מוזנות לחלון ההקשר כמקור מאומת לתשובה, והתשובה עצמה מוצגת למשתמש ב-Streaming תוך כדי ציטוט מקורות — כך שכל טענה ניתנת לאימות במקום להסתמך על ביטחון סגנוני של הטקסט המיוצר.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#ai-ml-dl">AI, ML, Deep Learning ו-LLM</a>
+      <a class="toc__link" href="#llm-next-token">LLM כמנוע חיזוי הטוקן הבא</a>
+      <a class="toc__link" href="#tokens">Tokens</a>
+      <a class="toc__link" href="#context-window">Context Window</a>
+      <a class="toc__link" href="#context-compression">דחיסת הקשר וניהול שיחות</a>
+      <a class="toc__link" href="#sampling-params">Temperature, Top-P, Max Tokens</a>
+      <a class="toc__link" href="#streaming">Streaming</a>
+      <a class="toc__link" href="#inference">Inference לעומת Training</a>
+      <a class="toc__link" href="#hallucinations">Hallucinations</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

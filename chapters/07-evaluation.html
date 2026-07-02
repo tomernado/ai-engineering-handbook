@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluation & Testing — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link is-active" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">Evaluation & Testing</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 7</div>
+        <h1><i class="fas fa-flask"></i> Evaluation & Testing</h1>
+        <p>הפרקים הקודמים עסקו בבניית מערכות מבוססות LLM — prompts, RAG, agents. הפרק הזה עוסק בשאלה שונה לגמרי: איך יודעים שהמערכת עובדת, וממשיכה לעבוד אחרי כל שינוי. בניגוד לקוד רגיל, שבו טסט יחיד עם קלט קבוע מייצר פלט קבוע, מערכת מבוססת LLM מייצרת פלט משתנה מטבעה — מה שהופך "האם זה עדיין עובד" לשאלה שדורשת מתודולוגיה משלה, לא רק unit tests רגילים.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-pen"></i> שינוי</div><div class="flow-step__desc">Prompt או מודל חדש</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-flask"></i> הרצת Evals</div><div class="flow-step__desc">מול golden dataset</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-gauge-high"></i> ציון</div><div class="flow-step__desc">השוואה לגרסה הקודמת</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-code-branch"></i> החלטה</div><div class="flow-step__desc">Ship אם עומד בסף, תיקון אם לא</div></div>
+        </div>
+        <div class="chapter-diagram__caption">לולאת ההערכה שחוזרת על עצמה בכל שינוי — הליבה של כל הפרק.</div>
+      </div>
+
+      <section class="topic" id="why-evals">
+        <h2 class="topic__title"><i class="fas fa-circle-question"></i> למה בכלל צריך Evals</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>evals הם תהליך שיטתי ומדיד להערכת איכות פלט של מערכת מבוססת LLM — לא בדיקה ידנית חד-פעמית, אלא סוויטה שאפשר להריץ שוב ושוב ולהשוות תוצאות לאורך זמן.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שלוש בעיות ייחודיות ל-LLM מחייבות evals שיטתיים:</p>
+          <ul class="term-list term-list--why">
+            <li><strong>פלט לא-דטרמיניסטי</strong> — אותה שאלה יכולה להניב תשובות שונות בין הרצות, כך שבדיקה חד-פעמית אינה מייצגת התנהגות כללית.</li>
+            <li><strong>שינוי קטן</strong> — עדכון prompt, שדרוג גרסת מודל, החלפת ספק — עלול לשפר מקרה אחד ולפגוע בעשרות אחרים בו-זמנית, בלי שאף אחד ישים לב עד שמשתמש מדווח על תקלה.</li>
+            <li><strong>בלי מדידה עקבית</strong> אי אפשר לענות על השאלה הבסיסית ביותר של הנדסת AI: האם הגרסה החדשה טובה יותר מהישנה, או רק *נראית* טובה יותר על כמה דוגמאות שנבדקו ידנית.</li>
+          </ul>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>סוויטת evals מגדירה קלטים מייצגים, קריטריון הצלחה ברור לכל אחד (או שיטת ניקוד), ומריצה את המערכת הנבדקת מולם — ידנית בתחילת פיתוח, ובהמשך אוטומטית כחלק מהזרימה. התוצאה היא ציון או סט ציונים שאפשר להשוות בין גרסאות.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>צוות ששינה prompt כדי לתקן בעיה ספציפית שדווחה עשוי לגלות, רק כשמריץ את השינוי מול סוויטת evals קיימת, שהתיקון פתר את המקרה המדווח אך פגע בהתנהגות בשלושה תרחישים אחרים שהיו עובדים קודם — פגיעה שלא הייתה מתגלה בבדיקה ידנית ממוקדת רק במקרה המקורי.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתחיל לבנות סוויטת evals מוקדם בפיתוח, גם אם קטנה — עדיף כמה עשרות מקרים ממשיים על פני אפס.</li>
+          <li><i class="fas fa-check"></i> להריץ את הסוויטה על כל שינוי משמעותי ב-prompt, במודל, או בלוגיקת האחזור, לא רק לפני release גדול.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתמך על "זה נראה לי טוב" בבדיקה ידנית של כמה דוגמאות כתחליף למדידה שיטתית — עיוור לרגרסיות שלא נבדקו במפורש.</li>
+            <li><i class="fas fa-xmark"></i> לדחות בניית evals עד "שיהיה זמן", כשבפועל כל שינוי שנעשה בלעדיהם הוא ניחוש לא-מדיד.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>evals הם ל-AI Engineering מה ש-unit tests הם לפיתוח תוכנה רגיל — לא תוספת אופציונלית לאחר שהמוצר "מוכן", אלא תשתית שמאפשרת לשנות דברים בביטחון. ההבדל המרכזי: השוואה בקוד רגיל היא שוויון מדויק; בהערכת LLM היא כמעט תמיד שיפוט דמיון או איכות, נושא שהפרק ממשיך לפתח בהמשך.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>evals נדרשים כי פלט LLM לא-דטרמיניסטי ושינויים קטנים יכולים לייצר רגרסיה שקטה.</li>
+            <li>בלי מדידה עקבית אי אפשר לדעת אם גרסה חדשה באמת טובה יותר.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="llm-as-judge">
+        <h2 class="topic__title"><i class="fas fa-gavel"></i> LLM-as-Judge</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שימוש במודל LLM נפרד — או באותו מודל, אך בתפקיד נבדל ומבודד — כדי לדרג את איכות תשובה של המערכת הנבדקת מול קריטריונים מוגדרים מראש, במקום שאדם יעריך כל תשובה ידנית.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>הערכה אנושית של כל תשובה מדויקת אך לא ניתנת לקנה מידה — לא ריאלי להריץ אדם על מאות מקרי בדיקה בכל שינוי prompt. LLM-as-judge פותר את בעיית קנה המידה: מודל יכול לדרג מאות תשובות תוך דקות ובעלות זניחה יחסית להערכה אנושית. המחיר הוא איכות שיפוט: השופט עצמו הוא LLM, ולכן נושא הטיות אופייניות (למשל נטייה להעדיף תשובות ארוכות יותר, או תשובות בסגנון קרוב לסגנון השופט עצמו) ורמת עקביות חלקית — אותה תשובה עלולה לקבל ציון מעט שונה בין הרצות שיפוט שונות.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ה-judge מקבל prompt נפרד המכיל את הקלט המקורי, את התשובה שיש להעריך, ולעיתים תשובת-ייחוס ("golden answer"), ומתבקש להחזיר ציון או שיפוט בינארי לפי קריטריון מוגדר במפורש — לא "האם זה טוב" כללי, אלא קריטריון ספציק כמו "האם התשובה עונה במדויק על השאלה שנשאלה" או "האם התשובה נאמנה למקורות שסופקו".</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>סוויטת evals לצ'אטבוט תמיכה יכולה להשתמש במודל שופט שמקבל שאלת משתמש, תשובת המערכת, ומדיניות תמיכה רלוונטית, ומתבקש לענות "כן/לא" על "האם התשובה עומדת במדיניות ואינה מבטיחה דברים שהמדיניות לא מתירה" — קריטריון צר וממוקד שקל לשופט להעריך בעקביות יחסית, בניגוד ל"האם זו תשובה טובה" הכללית.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לנסח לשופט קריטריון צר וממוקד אחד בכל פעם, ולא שאלת איכות כללית — כך גם עקביות השיפוט וגם יכולת הדיבוג משתפרות.</li>
+          <li><i class="fas fa-check"></i> לבדוק מדי פעם את השופט עצמו מול הערכה אנושית על מדגם קטן, כדי לוודא שהוא לא סוטה שיטתית.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשתמש באותו מודל בדיוק, באותו prompt, גם כמערכת הנבדקת וגם כשופט — מגביר את הסיכון להטיה שיטתית לטובת סגנון התשובות של אותו מודל.</li>
+            <li><i class="fas fa-xmark"></i> לסמוך על ציון יחיד מהרצת שיפוט בודדת בלי לבחון יציבות — כשהעקביות חלקית, כדאי לשקול כמה הרצות שיפוט ולהסתכל על התפלגות, לא נקודת נתון בודדת.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>LLM-as-judge אינו תחליף מלא להערכה אנושית — הוא כלי שמאפשר להריץ כמות גדולה בהרבה של בדיקות בתדירות גבוהה בהרבה, במחיר דיוק נמוך יותר לכל בדיקה בודדת. השילוב היעיל בפועל: judge אוטומטי כרעש-רקע רציף בכל שינוי, והערכה אנושית ממוקדת על מדגם או על מקרי קצה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>LLM-as-judge נותן קנה מידה ועלות נמוכה, במחיר הטיות שיפוט ועקביות חלקית.</li>
+            <li>קריטריון שיפוט צר וממוקד עדיף על שאלת איכות כללית.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="benchmarks">
+        <h2 class="topic__title"><i class="fas fa-ranking-star"></i> Benchmarks כלליים מול סטים ייעודיים</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הבחנה בין מבחני יחס כלליים לדירוג מודלים (benchmark suites ציבוריים) לבין סט בדיקה ייעודי, שנבנה מתרחישי שימוש אמיתיים של המוצר הספציפי.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>ציון גבוה ב-benchmark כללי אומר שהמודל חזק ביחס למודלים אחרים על משימות כלליות — הוא לא אומר דבר על האם המערכת שלך, עם ה-prompt, ה-RAG, וקהל המשתמשים הספציפיים שלך, בפועל עובדת טוב עבורם.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>benchmark כללי משמש בעיקר לבחירת מודל בסיס בשלב מוקדם; סט ייעודי, הנבנה מ<a href="#golden-datasets--from--07-evaluation.html%23benchmarks">golden dataset</a> ומתרחישי משתמשים אמיתיים, הוא הכלי שמודד אם המערכת בפועל עומדת בדרישות המוצר.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>מודל שמדורג גבוה ב-benchmark כללי של הבנת קוד עדיין עלול לייצר תשובות גרועות באפליקציית מתכונים ספציפית, אם ה-prompt וה-RAG שלה לא מותאמים היטב — ה-benchmark הכללי לא נבדק כלל על התרחיש הזה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש ב-benchmark כללי רק לצמצום ראשוני של רשימת מודלים מועמדים, ולא כאישור סופי להתאמה למוצר.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבחור מודל רק לפי דירוג ב-benchmark ציבורי בלי לבדוק אותו מול תרחישי השימוש האמיתיים של המוצר.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>benchmark כללי מודד את המודל; סט ייעודי מודד את המערכת שלך — שני דברים שונים לגמרי, ורק השני חוזה ביצועים בייצור.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>benchmark כללי לבחירת מודל בסיס; סט ייעודי למדידת התאמה למוצר בפועל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="ab-testing-production">
+        <h2 class="topic__title"><i class="fas fa-flask-vial"></i> A/B Testing בייצור</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>בדיקת שינוי — prompt חדש, מודל אחר, פייפליין RAG משופר — על אחוז קטן ומבוקר מהתנועה האמיתית בייצור, לפני rollout מלא לכלל המשתמשים.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>evals לפני-ייצור (offline, מול golden dataset) בודקים איכות תשובה, אבל לא תמיד חוזים השפעה על מדדים עסקיים בפועל — שביעות רצון משתמשים, זמן שהייה, המרה. שינוי שמשפר ציון faithfulness ב-eval יכול בכל זאת להוריד מדד עסקי בגלל טון, אורך תשובה, או latency שלא נמדדו ב-eval הטכני.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>תנועת ייצור מפוצלת אקראית בין גרסה קיימת (control) לגרסה חדשה (treatment) באחוז קטן; מדדים עסקיים ומדדי איכות נאספים משתי הקבוצות במקביל ומושווים באופן סטטיסטי, לפני החלטה על rollout מלא.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>prompt חדש שעבר בהצלחה את סוויטת ה-evals האוטומטית עדיין נבדק על 5% מהתנועה האמיתית לפני rollout מלא — כדי לוודא שהוא לא פוגע במדד עסקי כמו שיעור השלמת שיחה, מדד שלא נמדד ישירות בסוויטת ה-evals הטכנית.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להריץ A/B testing גם כששינוי כבר עבר evals offline בהצלחה — הם בודקים דברים שונים.</li>
+          <li><i class="fas fa-check"></i> להגדיר מראש מהו מדד ההצלחה העסקי ואת סף המובהקות הנדרש, לפני תחילת הבדיקה, לא אחריה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לדלג ישירות מ-eval טכני מוצלח ל-rollout מלא, בלי חלון בדיקה על תנועה אמיתית שחושף השפעות שלא נמדדו מראש.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>evals offline ו-A/B testing בייצור אינם שלבים חלופיים אלא סדרתיים — הראשון שער סף מהיר וזול לפני שינוי, השני אימות סופי מול התנהגות משתמשים אמיתית שאף eval offline לא יכול לדמות במלואה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>A/B testing בודק מדדים עסקיים על תנועה אמיתית, לא רק איכות טכנית.</li>
+            <li>מגיע אחרי evals offline מוצלחים, לא במקומם.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="golden-datasets">
+        <h2 class="topic__title"><i class="fas fa-star"></i> Golden Datasets</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>סט קבוע של שאלות או תרחישים, יחד עם תשובות או תכונות "נכונות" ידועות מראש, המשמש קו בסיס יציב להשוואת גרסאות שונות של המערכת לאורך זמן.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בלי סט קבוע, כל בדיקה משווה תפוחים לתפוזים — קלטים שונים בכל פעם, ולכן אי אפשר לדעת אם שינוי בציון נובע מהשינוי במערכת או משוני בקלטי הבדיקה עצמם. golden dataset קבוע מבודד את המשתנה היחיד שרוצים למדוד: השפעת השינוי במערכת.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>הסט נבנה פעם אחת (ומתעדכן מדי פעם בזהירות) מתוך מקרי שימוש אמיתיים או קריטיים במיוחד, כל אחד עם תשובת-ייחוס או קריטריון הצלחה מוגדר. כל גרסה חדשה של המערכת מורצת מול אותו הסט המדויק, כדי שההשוואה בין גרסאות תהיה נקייה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>אפליקציית מתכונים קטנה כמו After Taste יכולה להסתפק ב-golden dataset מינימלי אך אפקטיבי: עשר שאלות קבועות על מתכונים ("כמה זמן צריך לאפות עוגת שוקולד", "האם המתכון X מכיל גלוטן") שחייבות לקבל תשובה נכונה בכל גרסה — סט קטן דיו לתחזוק ידני, אך גדול דיו לתפוס רגרסיה בסיסית לפני שמשתמש נתקל בה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לבנות את הסט מתוך מקרים אמיתיים או קריטיים, לא דוגמאות מומצאות שלא משקפות שימוש בפועל.</li>
+          <li><i class="fas fa-check"></i> להתחיל קטן — גם עשר דוגמאות טובות עדיפות על אפס, ולהרחיב בהדרגה ככל שמתגלים מקרי קצה חדשים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לשנות את הסט תדיר או בלי תיעוד — הופך השוואת גרסאות לאורך זמן ללא-אמינה, כי לא ברור אם השינוי בציון נובע מהמערכת או מהסט.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הערך של golden dataset אינו בגודלו אלא ביציבותו — סט קבוע וקטן שמורץ באופן עקבי על כל שינוי שימושי הרבה יותר מסט גדול ומשתנה שרץ לפעמים.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>סט קבוע עם תשובות ידועות, המשמש קו בסיס יציב להשוואת גרסאות.</li>
+            <li>גם סט קטן (כמה עשרות מקרים) יעיל, אם הוא יציב ומורץ עקבית.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="prompt-regression-testing">
+        <h2 class="topic__title"><i class="fas fa-arrows-rotate"></i> Prompt Regression Testing</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הרצה אוטומטית של <a href="#golden-datasets--from--07-evaluation.html%23prompt-regression-testing">golden dataset</a> בכל שינוי ב-prompt או במודל, כדי לזהות ירידה באיכות לפני שהיא מגיעה למשתמשים — מקביל ל-unit tests בקוד רגיל, אך עם בדיקת דמיון או איכות במקום שוויון מדויק.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שינוי prompt שמתוקן ידנית ("נראה שזה עובד יותר טוב על הדוגמה שבדקתי") הוא ניחוש בלי הרצה שיטתית מול הסט הקבוע; regression testing הופך את הבדיקה לחוזרת ואוטומטית.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>סקריפט מריץ את ה-prompt החדש מול כל מקרה ב-golden dataset, משווה כל תשובה לתשובת הייחוס (באמצעות <a href="#llm-as-judge--from--07-evaluation.html%23prompt-regression-testing">LLM-as-judge</a> או מדד דמיון), ומפיק ציון כולל להשוואה מול הגרסה הקודמת.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>צוות שעובד עם כלי agentic לכתיבת קוד עשוי להריץ סוויטת prompt regression לפני כל שינוי בהוראות המערכת של ה-agent — משווה תשובות על סט קבוע של משימות תכנות מוכרות לתשובות שהתקבלו בגרסה הקודמת, כדי לוודא שהניסוח החדש לא פגע בהתנהגות שכבר עבדה טוב.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להריץ את סוויטת ה-regression לפני כל שינוי prompt שמגיע לייצור, לא רק מדי פעם.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לדרוש שוויון מדויק בין תשובה חדשה לתשובת ייחוס, כמו ב-unit test רגיל — פלט LLM משתנה מילולית גם כשהוא נכון, ודורש מדד דמיון/איכות ולא השוואת מחרוזות.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ההבדל היחיד באמת בין regression testing רגיל ל-prompt regression testing הוא אופי ההשוואה — שוויון מדויק מול שיפוט דמיון/איכות. המסגרת התפעולית (הרצה אוטומטית על כל שינוי, סף כישלון ברור) זהה לחלוטין.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הרצת golden dataset אוטומטית בכל שינוי prompt/מודל, לפני שהוא מגיע למשתמשים.</li>
+            <li>ההשוואה מבוססת דמיון/איכות, לא שוויון מדויק כמו ב-unit test רגיל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="ci-cd-for-ai">
+        <h2 class="topic__title"><i class="fas fa-code-branch"></i> CI/CD ל-AI</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שילוב סוויטת evals בצינור CI/CD: הרצה אוטומטית על כל pull request שמשנה prompt או לוגיקת AI, וחסימת מיזוג (merge) אם הציון יורד מתחת לסף שהוגדר מראש.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p><a href="#prompt-regression-testing--from--07-evaluation.html%23ci-cd-for-ai">Prompt regression testing</a> שמורץ ידנית "כשנזכרים" נשכח בדיוק כשהוא הכי נחוץ — תחת לחץ זמן לפני release. הטמעה בתוך ה-CI/CD הופכת את הבדיקה לשלב חובה שלא ניתן לעקוף, בדיוק כמו שבדיקות יחידה חוסמות merge של קוד שבור.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שלב ייעודי בפייפליין ה-CI מריץ סקריפט evals על golden dataset מול הגרסה החדשה של ה-prompt או הלוגיקה, משווה לציון סף מוגדר, ומכשיל את השלב (ולכן חוסם merge) אם הציון נמוך מהסף — באותה צורה שבה שלב טסטים רגיל נכשל על בדיקה שבורה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>PR שמשנה את הוראות המערכת של agent קוד מפעיל אוטומטית שלב CI שמריץ את הוראות ה-agent החדשות מול סט משימות תכנות קבועות ומדרג את התשובות מול ציון הבסיס — אם הציון יורד משמעותית, ה-PR נכשל ואינו ניתן למיזוג עד לתיקון, בדיוק כמו כישלון בבדיקות יחידה רגילות.</p>
+        </div>
+        <pre><code class="language-yaml">- name: Run prompt regression evals
+  run: python scripts/run_evals.py --dataset golden_set.json --min-score 0.85
+  # הסקריפט מריץ את ה-prompt/agent החדש מול golden dataset,
+  # מדרג כל תשובה מול תשובת ייחוס (LLM-as-judge או מדד דמיון),
+  # ומחזיר קוד יציאה שונה מ-0 אם הציון הממוצע נמוך מ-0.85 —
+  # מה שמכשיל את השלב וחוסם merge של ה-PR.</code></pre>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר סף כישלון מספרי ברור מראש (למשל ציון ממוצע מינימלי), לא הערכה סובייקטיבית של תוצאות ה-CI.</li>
+          <li><i class="fas fa-check"></i> לשמור היסטוריית ציונים לאורך זמן, לא רק pass/fail בודד — כך רואים מגמת שחיקה הדרגתית לפני שהיא חוצה את הסף.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשאיר את שלב ה-evals כ-warning בלבד שאינו חוסם merge בפועל — ברגע שהוא לא חוסם, הוא נהיה רעש שמתעלמים ממנו.</li>
+            <li><i class="fas fa-xmark"></i> לקבוע סף כישלון שרירותי בלי לבסס אותו על ציון בסיס אמיתי של הגרסה היציבה הנוכחית.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הטמעת evals ב-CI/CD היא מה שמבדיל צוות שמתייחס לפרומפטים כאל קוד לכל דבר, עם משמעת בדיקה זהה, מצוות שמתייחס אליהם כאל תוכן חופשי שמתעדכן על סמך תחושת בטן. ברוב הכלים agentic המודרניים לכתיבת קוד קיים דפוס דומה: שינויים בהתנהגות ה-agent עוברים סוויטת בדיקות רגרסיה לפני שהם משתחררים.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>שלב evals ב-CI, עם סף מוגדר, שחוסם merge בפועל — לא warning אופציונלי.</li>
+            <li>ללא הטמעה ב-CI, בדיקת רגרסיה נשכחת בדיוק כשהיא הכי נחוצה.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="rag-eval-metrics">
+        <h2 class="topic__title"><i class="fas fa-clipboard-check"></i> מדדי הערכת RAG: Faithfulness ו-Relevance</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שני מדדים נפרדים ומשלימים להערכת פייפליין <a href="03-memory-rag.html">RAG</a>:</p>
+          <ul class="term-list">
+            <li><strong>faithfulness</strong> — האם התשובה הסופית נאמנה אך ורק למסמכים שאוחזרו בפועל, בלי להוסיף פרטים שאינם מופיעים בהם.</li>
+            <li><strong>relevance</strong> — האם המסמכים שאוחזרו מלכתחילה רלוונטיים לשאלה שנשאלה.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>פייפליין RAG יכול להיכשל בשני מקומות עצמאיים — שלב האחזור ושלב ה-generation — ומדד איכות יחיד ומאוחד מטשטש איפה בדיוק הכשל קרה. ההבחנה קריטית: אפשר לקבל תשובה נאמנה לחלוטין למסמכים שאוחזרו (faithfulness מושלם) כשהמסמכים עצמם אינם רלוונטיים לשאלה (relevance נמוך) — וזו עדיין כשל מלא של המערכת, גם אם המודל "לא המציא" שום דבר. באותה מידה, אחזור מצוין (relevance גבוה) יכול להיות מלווה בתשובה שמוסיפה פרט שלא מופיע באף מסמך (faithfulness נמוך). רק מדידה נפרדת של השניים מצביעה על השלב שדורש תיקון.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>relevance</strong> נמדד ברמת שלב האחזור בלבד — עד כמה המסמכים שהוחזרו קרובים סמנטית לשאלה, בלי קשר לתשובה הסופית שהופקה מהם.</li>
+            <li><strong>faithfulness</strong> נמדד בהשוואה בין תוכן התשובה הסופית לתוכן המסמכים שסופקו כהקשר, בדרך כלל באמצעות <a href="#llm-as-judge--from--07-evaluation.html%23rag-eval-metrics">LLM-as-judge</a> שבודק האם כל טענה בתשובה נתמכת במפורש באחד המסמכים.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>מערכת RAG לשאלות רפואיות שאחזרה מסמכים על תרופה לא-קשורה (relevance נמוך) עדיין עלולה להפיק תשובה נאמנה למילה למסמכים האלה (faithfulness גבוה) — תשובה "נכונה טכנית" ביחס למקורות, אך שגויה לחלוטין ביחס לשאלה בפועל, כי המקורות עצמם לא היו הנכונים. בדיקת faithfulness בלבד לא הייתה חושפת את הכשל הזה; רק בדיקת relevance נפרדת מגלה אותו.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> למדוד faithfulness ו-relevance כשני ציונים נפרדים תמיד, לא כציון מאוחד יחיד שמטשטש היכן הכשל.</li>
+          <li><i class="fas fa-check"></i> כשמתגלה בעיה, לבדוק תחילה relevance — אם האחזור עצמו כשל, אין טעם לדבג את שלב ה-generation.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתפק בבדיקת faithfulness בלבד ("התשובה נאמנה למקורות") בלי לבדוק אם המקורות עצמם היו רלוונטיים לשאלה מלכתחילה.</li>
+            <li><i class="fas fa-xmark"></i> להתייחס לציון RAG מאוחד יחיד כאל מדד מספיק — הוא לא מצביע איזה משני השלבים דורש תיקון.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הפרדת faithfulness מ-relevance היא מה שהופך דיבוג RAG מניחוש למדיד — ציון נמוך בשלב הנכון מקצר משמעותית את זמן התיקון, כי הוא מצביע ישירות אם הבעיה באחזור או ב-generation. הדיון המקדים במדדים האלה מופיע גם ב<a href="04-advanced-rag.html#rag-eval-preview--from--07-evaluation.html%23rag-eval-metrics">פרק 4</a>, בהקשר של פייפליין RAG מתקדם.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>faithfulness = נאמנות התשובה למסמכים שאוחזרו; relevance = רלוונטיות המסמכים לשאלה.</li>
+            <li>תשובה נאמנה למסמכים לא-רלוונטיים היא עדיין כשל — יש למדוד את שני הצירים בנפרד.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-star"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> After Taste — golden dataset מינימלי כתרגול הערכה אמיתי</div>
+          <p>אפליקציית מתכונים קטנה כמו After Taste ממחישה שהערכה שיטתית אינה דורשת תשתית כבדה. סוויטת evals מלאה, judge מתוחכם, ופייפליין CI/CD מרובה-שלבים — כל אלו רלוונטיים למערכות בקנה מידה גדול, אך לא הכרחיים כדי להתחיל. מה שכן הכרחי הוא <a href="#golden-datasets--from--07-evaluation.html%23real-world-example">golden dataset</a> קבוע ומינימלי: עשר שאלות שחוזרות תמיד — "כמה זמן אפייה לעוגת שוקולד", "האם המתכון מכיל אגוזים", "מה הכמות הנדרשת של קמח במתכון X" — עם תשובות ידועות מראש. בכל שינוי בלוגיקת השליפה או בניסוח ה-prompt שמחזיר תשובות על מתכונים, מריצים את עשר השאלות מחדש ובודקים ידנית שהתשובות עדיין נכונות. זה לא <a href="#ci-cd-for-ai--from--07-evaluation.html%23real-world-example">CI/CD אוטומטי</a> עם שלב חוסם merge, וזה לא <a href="#llm-as-judge--from--07-evaluation.html%23real-world-example">LLM-as-judge</a> מתוחכם — זה <a href="#prompt-regression-testing--from--07-evaluation.html%23real-world-example">prompt regression testing</a> בצורתו הפשוטה ביותר, מורץ ידנית תוך דקות. ההבדל בין זה לבין אי-בדיקה כלל הוא ההבדל בין מדידה עקבית, ולו מינימלית, לבין ניחוש מוחלט — וברוב המוצרים הקטנים, זו רמת ההשקעה הנכונה: מספיק כדי לתפוס רגרסיה בסיסית, לא כל כך הרבה שההערכה עצמה הופכת לפרויקט משנה.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#why-evals">למה בכלל צריך Evals</a>
+      <a class="toc__link" href="#llm-as-judge">LLM-as-Judge</a>
+      <a class="toc__link" href="#benchmarks">Benchmarks מול סטים ייעודיים</a>
+      <a class="toc__link" href="#ab-testing-production">A/B Testing בייצור</a>
+      <a class="toc__link" href="#golden-datasets">Golden Datasets</a>
+      <a class="toc__link" href="#prompt-regression-testing">Prompt Regression Testing</a>
+      <a class="toc__link" href="#ci-cd-for-ai">CI/CD ל-AI</a>
+      <a class="toc__link" href="#rag-eval-metrics">מדדי הערכת RAG</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

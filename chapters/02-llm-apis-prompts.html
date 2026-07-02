@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM APIs ו-Prompt Engineering — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link is-active" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">LLM APIs ו-Prompt Engineering</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 2</div>
+        <h1><i class="fas fa-plug"></i> LLM APIs ו-Prompt Engineering</h1>
+        <p>פרק 1 הסביר מה קורה בתוך המודל. הפרק הזה עובר לשכבת האפליקציה: איך בקשה בודדת ממשתמש הופכת לקריאת API בנויה היטב, מהי הנוסחה שמניבה prompt איכותי, ואיך להבטיח שהפלט שחוזר מהמודל בטוח לשימוש במערכת production — לא רק "נשמע טוב".</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-display"></i> Frontend</div><div class="flow-step__desc">אוסף את קלט המשתמש</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-server"></i> Backend</div><div class="flow-step__desc">מוסיף הקשר ומדיניות</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-hammer"></i> Prompt Builder</div><div class="flow-step__desc">מרכיב את הפרומפט הסופי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-microchip"></i> LLM API</div><div class="flow-step__desc">מריץ inference</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-check-double"></i> Validation</div><div class="flow-step__desc">בודק את הפלט</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-display"></i> Frontend</div><div class="flow-step__desc">מציג תשובה</div></div>
+        </div>
+        <div class="chapter-diagram__caption">כל בקשת API בודדת עוברת את השרשרת הזו — הפרק מפרק כל שלב בנפרד.</div>
+      </div>
+
+      <section class="topic" id="api-architecture">
+        <h2 class="topic__title"><i class="fas fa-diagram-project"></i> ארכיטקטורת בקשת API</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>בקשה בודדת ממשתמש לפיצ'ר מבוסס LLM אינה קריאת API יחידה שקורית "לבד" — היא עוברת רצף שכבות מוגדר:</p>
+          <ul class="term-list">
+            <li><strong>Frontend</strong> — אוסף את קלט המשתמש.</li>
+            <li><strong>Backend</strong> — מטפל בלוגיקת האפליקציה ובאימות.</li>
+            <li><strong>Prompt Builder</strong> — מרכיב את הפרומפט הסופי משילוב של הנחיות קבועות וקלט דינמי.</li>
+            <li><strong>LLM API</strong> — מבצע את ה-Inference עצמו.</li>
+            <li><strong>שכבת Validation</strong> — בודקת את הפלט לפני שהוא יוצא.</li>
+            <li><strong>Frontend</strong> — מציג את התוצאה למשתמש.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>הפרדת השכבות הזו היא מה שהופך פרויקט "קריאה ל-API של Claude" לארכיטקטורת production אמיתית. ללא Prompt Builder נפרד, כל שינוי בהנחיות מחייב לגעת בקוד עסקי; ללא שכבת Validation, כל תקלה במודל (JSON פגום, שדה חסר, הזיה) זולגת ישירות למשתמש או למסד הנתונים. חשיבה במונחי pipeline — לא "קריאת API בודדת" — היא מה שמאפשר תחזוקה, בדיקות, וניפוי תקלות שיטתי.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>Frontend שולח בקשת HTTP ל-Backend עם קלט גולמי של המשתמש (לא נשלח ישירות ל-LLM API מסיבות אבטחה ומפתחות API). ה-Backend מאמת הרשאות ותקינות קלט, ומעביר את המידע הרלוונטי ל-Prompt Builder — רכיב שאחראי להרכיב את הפרומפט הסופי משילוב של System Prompt קבוע, תבניות (templates), והקשר דינמי (ראו נושא Context Engineering). הפרומפט הבנוי נשלח ל-LLM API, שמחזיר טקסט או JSON גולמי. שכבת Validation בודקת מבנה, טיפוסים, ולעיתים גם תוכן, ורק פלט שעבר אימות מוחזר ל-Frontend להצגה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>באפליקציית מתכונים כמו After Taste, פיצ'ר "הוסף מתכון מטקסט חופשי" עובר את כל השרשרת: המשתמש מדביק טקסט חופשי ב-Frontend, ה-Backend שולח אותו ל-Prompt Builder שמצרף הנחיות קבועות לחילוץ שדות מתכון, ה-LLM מחזיר JSON, שכבת Validation מוודאת שכל שדה חובה (שם, רכיבים, הוראות) קיים ומהסוג הנכון לפני שמירה ב-Supabase.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-desktop"></i> Frontend</div><div class="flow-step__desc">איסוף קלט המשתמש</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-server"></i> Backend</div><div class="flow-step__desc">אימות הרשאות ולוגיקה עסקית</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-trowel-bricks"></i> Prompt Builder</div><div class="flow-step__desc">הרכבת פרומפט סופי מהנחיות והקשר</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-plug"></i> LLM API</div><div class="flow-step__desc">Inference — קבלת פלט גולמי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-shield-check"></i> Validation</div><div class="flow-step__desc">בדיקת מבנה, טיפוסים ותוכן</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-display"></i> Frontend</div><div class="flow-step__desc">הצגת תוצאה מאומתת למשתמש</div></div>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לשמור את מפתח ה-API ואת קריאת ה-LLM אך ורק ב-Backend, לעולם לא ב-Frontend.</li>
+          <li><i class="fas fa-check"></i> להפריד את Prompt Builder לרכיב עצמאי הניתן לבדיקה ולשינוי ללא נגיעה בלוגיקה עסקית.</li>
+          <li><i class="fas fa-check"></i> להתייחס לכל שכבה כנקודת כשל אפשרית עצמאית, ולתעד לוגים בכל מעבר בין שכבות.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לקרוא ל-LLM API ישירות מה-Frontend, מה שחושף מפתחות API וגלוי לשינוי prompt על ידי המשתמש.</li>
+            <li><i class="fas fa-xmark"></i> לערבב את בניית הפרומפט בתוך קוד הבקרים (controllers) העסקיים, מה שמקשה על תחזוקה ובדיקות.</li>
+            <li><i class="fas fa-xmark"></i> להחזיר פלט LLM ישירות ל-Frontend ללא שכבת Validation מפורשת ביניים.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ככל שהמערכת גדלה, שכבת Prompt Builder הופכת לנכס הנדסי בפני עצמו — גרסאות פרומפט, A/B testing בין ניסוחים, ולוגים של הפרומפט המלא שנשלח בכל קריאה הופכים חיוניים לניפוי תקלות. מערכת ללא הפרדה כזו לא תוכל לענות על השאלה "מה בדיוק נשלח למודל שגרם לתשובה הזו".</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הרצף: Frontend → Backend → Prompt Builder → LLM API → Validation → Frontend.</li>
+            <li>LLM API נקרא רק מה-Backend, לעולם לא מה-Frontend.</li>
+            <li>Prompt Builder ו-Validation הם רכיבים עצמאיים, לא קוד מוטמע.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="roles">
+        <h2 class="topic__title"><i class="fas fa-users"></i> System / User / Assistant Roles</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>כל קריאת API ל-LLM שיחתי בנויה כרשימת הודעות עם תפקיד (role) מוגדר לכל אחת:</p>
+          <ul class="term-list">
+            <li><strong>System</strong> — מגדיר את ההתנהגות הכללית והקבועה של המודל.</li>
+            <li><strong>User</strong> — מכיל את קלט המשתמש בפועל.</li>
+            <li><strong>Assistant</strong> — מכיל תשובות קודמות של המודל עצמו (לצורך שמירת היסטוריית שיחה).</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>ההפרדה בין הרולים אינה רק סמנטית — היא שכבת האמון היחידה שקיימת ל-API. הנחיה שנשלחת כ-System נחשבת מהימנה ובעלת עדיפות; טקסט שנשלח כ-User (ובפרט טקסט שמקורו במשתמש קצה או במסמך חיצוני) חייב להיחשב פוטנציאלית עוין. בלבול בין הרולים — למשל הזרמת תוכן חיצוני לא-מהימן לתוך ה-System Prompt — פותח פרצת prompt injection.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ה-API מקבל מערך הודעות מסודר; המודל מתייחס לתוכן כל role באופן הבא:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>System</strong> — בעל משקל גבוה יותר בקביעת ההתנהגות הכללית.</li>
+            <li><strong>User</strong> — הבקשה הנוכחית שיש להגיב אליה.</li>
+            <li><strong>Assistant</strong> — הקשר שיחה קודם שיש לשמור עליו עקבי.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בבוט תמיכה, ה-System Prompt קובע "ענה רק בנושאי המוצר, לעולם אל תחשוף מידע פנימי"; הודעות ה-User הן שאלות הלקוח בפועל. הזנת תוכן ממייל לקוח ישירות כ-System Prompt במקום כ-User תהיה טעות ארכיטקטונית שמפרה את גבול האמון.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להזרים תוכן ממקור לא-מהימן (קלט משתמש, מסמכים חיצוניים) תמיד תחת role של User, לעולם לא System.</li>
+          <li><i class="fas fa-check"></i> לשמור את ה-System Prompt קבוע ותמציתי, נפרד מהתוכן הדינמי.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להזרים טקסט ממקור חיצוני לתוך ה-System Prompt, מה שמעניק לו אמון-יתר ופותח סיכון אבטחה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הבחנת הרולים היא קו ההגנה הראשון נגד prompt injection — לא פרט מימוש טכני שולי. מהנדס שמזרים תוכן לא-מהימן תחת role לא נכון פותח פרצת אבטחה, לא רק בעיית פורמט.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>System = הנחיות מהימנות וקבועות; User = קלט נוכחי; Assistant = היסטוריה.</li>
+            <li>תוכן לא-מהימן תמיד תחת User, לעולם לא System.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="prompt-formula">
+        <h2 class="topic__title"><i class="fas fa-calculator"></i> נוסחת Prompt טוב</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>נוסחה מעשית לבניית prompt איכותי המורכבת מארבעה רכיבים:</p>
+          <ul class="term-list">
+            <li><strong>Role</strong> — מיהו המודל בהקשר הזה.</li>
+            <li><strong>Task</strong> — מה בדיוק נדרש לבצע.</li>
+            <li><strong>Constraints</strong> — מגבלות פורמט, אורך, טון, איסורים.</li>
+            <li><strong>Context</strong> — מידע רקע נדרש לביצוע המשימה.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>prompt שנכתב כבקשה חופשית וכללית ("תעזור לי עם המתכון הזה") משאיר למודל להחליט החלטות פורמט וטון שהאפליקציה צריכה לשלוט בהן. נוסחה מובנית הופכת כתיבת prompt מאמנות אינטואיטיבית לתהליך הנדסי חוזר, הניתן לבדיקה, לגרסאות (versioning), ולשיפור שיטתי.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל רכיב ממלא תפקיד שונה בצמצום מרחב הפלט האפשרי:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>Role</strong> — ממסגר את "קול" ואת נקודת המבט של התשובה.</li>
+            <li><strong>Task</strong> — קובע את הפעולה הספציפית ומונע תשובות עמומות מדי.</li>
+            <li><strong>Constraints</strong> — חוסמות פלטים לא-רצויים מראש (אורך, שפה, פורמט, מה אסור לכלול).</li>
+            <li><strong>Context</strong> — מספק את המידע העובדתי הנדרש שאין למודל בלעדיו.</li>
+          </ul>
+          <p>ארבעת הרכיבים יחד, לא כל אחד בנפרד, הם שמייצרים תשובה צפויה ורלוונטית.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p><strong>Role:</strong> "את/ה עורך/ת תוכן קולינרי מקצועי/ת." <strong>Task:</strong> "המר את הטקסט החופשי הבא למתכון מובנה." <strong>Constraints:</strong> "החזר JSON בלבד לפי הסכמה הנתונה, ללא טקסט נוסף; כמויות במידות מטריות." <strong>Context:</strong> "הטקסט המקורי שהמשתמש הדביק: [טקסט המתכון]." שילוב ארבעת הרכיבים מייצר קריאת API יחידה שמניבה JSON תקין ועקבי, בניגוד ל"תמיר את זה למתכון" הכללי.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לכתוב כל אחד מארבעת הרכיבים כסעיף מפורש ונפרד בפרומפט, לא כמשפט אחד מעורבב.</li>
+          <li><i class="fas fa-check"></i> להגדיר Constraints באופן חיובי ("החזר JSON בלבד") לצד שלילי ("אל תוסיף הסברים") כשרלוונטי.</li>
+          <li><i class="fas fa-check"></i> לגרסאות (version) פרומפטים כמו קוד — שינוי בניסוח משפיע ישירות על איכות הפלט בפרודקשן.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לוותר על הגדרת Role, מה שמשאיר את "קול" התשובה בלתי-צפוי בין קריאות.</li>
+            <li><i class="fas fa-xmark"></i> להשמיט Constraints כשהפלט מיועד לפרסינג אוטומטי, ולקבל טקסט חופשי במקום פורמט קבוע.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ברוב הכשלים בפרודקשן שמיוחסים ל"המודל לא מבין", הבעיה בפועל היא רכיב חסר בנוסחה — לרוב Constraints. הוספת שורה מפורשת המגדירה פורמט פלט פותרת חלק ניכר מהתקלות הללו בלי צורך בשינוי מודל.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>נוסחה: Role + Task + Constraints + Context.</li>
+            <li>כל רכיב מצמצם את מרחב הפלט האפשרי בדרך שונה.</li>
+            <li>Prompt הוא נכס הדורש גרסאות, לא טקסט חד-פעמי.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="context-engineering">
+        <h2 class="topic__title"><i class="fas fa-boxes-stacked"></i> Context Engineering</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הדיסציפלינה של בחירה, סינון וארגון המידע שמוזרם בפועל לתוך ה-Context (ראו <a href="01-foundations.html#context-window--from--02-llm-apis-prompts.html%23context-engineering">Context Window בפרק 1</a>) בכל קריאת API — היסטוריית שיחה, תוצאות אחזור, פלטי כלים, ומסמכי רקע — בנפרד מניסוח ה-prompt עצמו.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>כתיבת prompt קובעת מה מבקשים מהמודל; Context Engineering קובעת עם אילו נתונים הוא עובד. שני הכשלים הנפוצים ביותר בפרודקשן — תשובה לא רלוונטית ותשובה יקרה מדי — נובעים כמעט תמיד מניהול הקשר לקוי, לא מניסוח prompt גרוע. זו הסיבה שהתחום הפך לתפקיד הנדסי נפרד, נבדל מ"prompt engineering" הצר.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>Prompt Builder (ראו נושא #1) אחראי בפועל ליישום Context Engineering: הוא מחליט אילו חלקי היסטוריה לכלול, אילו קטעי מידע לאחזר ולצרף, ובאיזה סדר למקם אותם (ראו lost-in-the-middle בפרק 1) — כל זאת לפני שהטקסט הסופי נשלח למודל. ההחלטות הללו מתעדכנות דינמית מבקשה לבקשה, בניגוד ל-System Prompt שנשאר קבוע.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזר קוד כמו Cursor או GitHub Copilot לא שולח את כל הריפו לכל קריאה — הוא בוחר את הקבצים הפתוחים, את הבלוק שבו הסמן נמצא, ותוצאות חיפוש רלוונטיות בלבד. זו החלטת Context Engineering, נפרדת לחלוטין מניסוח ההנחיה למודל.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לטפל בבחירת ההקשר כשלב הנדסי נפרד מכתיבת נוסח ה-prompt.</li>
+          <li><i class="fas fa-check"></i> למדוד בפועל אילו רכיבי הקשר משפרים תשובה ואילו רק מייקרים קריאה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להתמקד רק בליטוש ניסוח ה-prompt כשהבעיה בפועל היא הקשר לא רלוונטי או עודף.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>שיפור תשובה של LLM לרוב מגיע יותר משינוי מה נכנס להקשר מאשר משינוי ניסוח ההנחיה עצמה. כשתשובה לא מספקת, השאלה הראשונה צריכה להיות "מה בדיוק נשלח בפועל בקריאה הזו" — לא "איך לנסח אחרת".</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Context Engineering = מה נכנס להקשר; Prompt Engineering = איך מנוסחת הבקשה.</li>
+            <li>Prompt Builder הוא הרכיב שמיישם את שתיהן יחד.</li>
+            <li>רוב תקלות האיכות בפרודקשן מקורן בהקשר, לא בניסוח.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="few-shot-cot">
+        <h2 class="topic__title"><i class="fas fa-list-ol"></i> Zero-Shot, Few-Shot ו-Chain-of-Thought</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שלוש טכניקות ניסוח משימה למודל:</p>
+          <ul class="term-list">
+            <li><strong>Zero-Shot</strong> — מבקש ביצוע ישיר ללא דוגמאות.</li>
+            <li><strong>Few-Shot</strong> — מצרף מספר דוגמאות קלט-פלט לפני הבקשה עצמה כדי להדגים את הפורמט או ההיגיון הרצוי.</li>
+            <li><strong>Chain-of-Thought (CoT)</strong> — מבקש מהמודל לפרט את שלבי ההיגיון בטקסט לפני מתן התשובה הסופית.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בחירת הטכניקה הנכונה משפיעה ישירות על איכות, עלות, ולטנסי:</p>
+          <ul class="term-list term-list--why">
+            <li><strong>Few-Shot</strong> — מיותר ומייקר משימות טריוויאליות; היעדרו במשימות עם פורמט לא-סטנדרטי מוביל לפלט לא-עקבי.</li>
+            <li><strong>CoT</strong> — משפר דיוק במשימות היגיון רב-שלבי אך מכפיל טוקנים ולעיתים אינו נחוץ כלל למשימות פשוטות.</li>
+          </ul>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>Zero-Shot</strong> — מתאים למשימות שהמודל "מכיר" היטב מתוך האימון (סיווג פשוט, סיכום כללי) — אין רווח בהוספת דוגמאות.</li>
+            <li><strong>Few-Shot</strong> — יעיל כשצריך לאכוף פורמט פלט ספציפי או סגנון לא-סטנדרטי: 2–5 דוגמאות מייצגות בדרך כלל מספיקות, ועודף דוגמאות מבזבז טוקנים ללא תועלת נוספת.</li>
+            <li><strong>Chain-of-Thought</strong> — יעיל במשימות הדורשות שרשור לוגי (חישוב, ניתוח רב-שלבי) — הבקשה המפורשת "חשוב שלב אחר שלב לפני התשובה הסופית" משפרת דיוק כי היא מרחיבה את "שטח החישוב" הטקסטואלי לפני שהמודל מחויב לתשובה.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>סיווג סנטימנט של ביקורת קצרה — Zero-Shot מספיק. חילוץ שדות מתכון לפורמט JSON ספציפי לאפליקציה — Few-Shot עם 2–3 דוגמאות ממחיש בדיוק את המבנה הרצוי. חישוב עלות כוללת של הזמנה עם הנחות מדורגות — CoT מבטיח שהמודל "יעבוד" את החישוב שלב-שלב במקום לנחש תוצאה סופית ישירות.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתחיל תמיד מ-Zero-Shot ולהוסיף Few-Shot רק כשהפלט לא עקבי בפועל.</li>
+          <li><i class="fas fa-check"></i> לבחור דוגמאות Few-Shot מייצגות את מלוא טווח המקרים, כולל מקרי קצה.</li>
+          <li><i class="fas fa-check"></i> להפעיל CoT במשימות היגיון רב-שלבי בלבד — לא כברירת מחדל גורפת.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להוסיף עשרות דוגמאות Few-Shot "ליתר ביטחון", מה שמייקר כל קריאה ללא שיפור מדיד באיכות.</li>
+            <li><i class="fas fa-xmark"></i> לבקש CoT יחד עם דרישת פלט JSON קשיח ללא הפרדה — שרשור המחשבה "מזהם" את הפלט המובנה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>כאשר נדרשים גם CoT וגם פלט מובנה, יש להפריד לשני שלבים: קריאה ראשונה עם CoT חופשי לקבלת הנמקה, קריאה שנייה (או פרסינג) שמחלצת רק את המסקנה הסופית לפורמט הקשיח. ניסיון לשלב את שניהם בקריאה אחת פוגע לרוב באמינות ה-JSON.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Zero-Shot כברירת מחדל; Few-Shot לאכיפת פורמט; CoT להיגיון רב-שלבי.</li>
+            <li>כל תוספת דוגמאות/הנמקה מגדילה עלות וטוקנים — לא חינמית.</li>
+            <li>CoT ופלט מובנה קשיח לא תמיד משתלבים היטב באותה קריאה.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="structured-output">
+        <h2 class="topic__title"><i class="fas fa-code"></i> Structured Output</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הכפפת פלט המודל לסכמה מוגדרת מראש במקום טקסט חופשי — באמצעות JSON mode, function-calling schemas (המודל "בוחר" לקרוא לפונקציה עם ארגומנטים מובנים), או אימות מול מודל טיפוסים כגון Pydantic (Python) או Zod (TypeScript).</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>כאשר הפלט מיועד לצריכה על ידי מערכת (מסד נתונים, API, קוד) ולא לקריאה אנושית, טקסט חופשי הוא ייצוג לא-אמין: כל שינוי קל בניסוח שובר parsing מבוסס regex. Structured Output הופך את הפלט לחוזה (contract) בין המודל למערכת, וניתן לאמת אותו אוטומטית לפני שימוש.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>הבקשה ל-API כוללת סכמה (JSON Schema או מקבילה) המתארת שדות, טיפוסים, ושדות חובה. חלק מהספקים אוכפים את הסכמה ברמת ה-API עצמו (garantia מבנית); באחרים יש לבקש זאת בפרומפט ולאמת בצד הלקוח. לאחר קבלת הפלט, ספריות כמו Pydantic או Zod מפרסרות ומאמתות את ה-JSON מול מודל טיפוסים מוגדר בקוד — כשל אימות נתפס מיד ולא מגיע לשכבות הבאות.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזרי קוד כמו GitHub Copilot ו-Cursor מפעילים עריכות קוד באמצעות פלט מובנה (diff/patch מובנה או function-calling), לא בקשה לכתוב "תתקן את זה" בטקסט חופשי — כך העריכה ניתנת ליישום אוטומטי, לביקורת (diff view), ולביטול (undo) מדויק. סכמה דומה נדרשת בפיצ'ר הוספת מתכון ב-After Taste: הפלט חייב להתאים למבנה טבלת המתכונים ב-Supabase.</p>
+        </div>
+        <pre><code class="language-json">{
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "minLength": 2 },
+    "category": {
+      "type": "string",
+      "enum": ["מנה עיקרית", "קינוח", "סלט", "מרק", "מאפה"]
+    },
+    "servings": { "type": "integer", "minimum": 1 },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "amount": { "type": "number" },
+          "unit": { "type": "string" }
+        },
+        "required": ["name", "amount", "unit"]
+      },
+      "minItems": 1
+    },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "required": ["title", "category", "servings", "ingredients", "steps"],
+  "additionalProperties": false
+}</code></pre>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להעדיף JSON mode או function-calling האכוף ברמת ה-API כשהספק תומך, על פני בקשה בטקסט חופשי "החזר JSON".</li>
+          <li><i class="fas fa-check"></i> להגדיר <code>additionalProperties: false</code> ושדות חובה מפורשים בסכמה כדי לצמצם דריפט פלט.</li>
+          <li><i class="fas fa-check"></i> לאמת כל פלט מול מודל טיפוסים בקוד (Pydantic/Zod) לפני כל שימוש נוסף.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתפק בבקשת "החזר JSON בלבד" בטקסט חופשי בלי אכיפת סכמה, ולקבל לעיתים טקסט מקדים או Markdown עוטף.</li>
+            <li><i class="fas fa-xmark"></i> להניח שסכמה בפרומפט מבטיחה תאימות מוחלטת — יש לאמת בכל זאת בקוד.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>Structured Output מצמצם דרסטית את שכיחות כשלי parsing, אך אינו מבטל את הצורך בשכבת Validation נפרדת (ראו נושא הבא) — סכמה תקנית מבטיחה מבנה, לא נכונות תוכן (למשל כמות שלילית או קטגוריה שאינה קיימת בפועל בעסק).</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>JSON mode, function-calling ו-Pydantic/Zod הן שלוש דרכי אכיפה משלימות.</li>
+            <li>סכמה עם שדות חובה ו-<code>additionalProperties: false</code> מצמצמת דריפט.</li>
+            <li>מבנה תקין ≠ תוכן נכון — Validation עדיין נדרש.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="output-validation">
+        <h2 class="topic__title"><i class="fas fa-check-double"></i> Output Validation</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שכבת בדיקה טכנית שרצה על כל פלט LLM לפני שהוא נכתב למסד נתונים או מוזן למערכת production — מוודאת JSON תקין (parse מצליח), קיום כל השדות הנדרשים, וטיפוסי נתונים נכונים (מחרוזת, מספר, enum תקין).</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>לעולם אין להכניס פלט LLM ישירות למסד נתונים או למערכת production ללא אימות. גם עם Structured Output, פלט המודל נשאר תוצר הסתברותי (ראו Hallucinations בפרק 1) שעלול לחרוג מהסכמה, להכיל ערך לא-הגיוני, או להיכשל בפורמט. Validation היא רשת הביטחון הדטרמיניסטית היחידה סביב רכיב הסתברותי מטבעו.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שכבת Validation פועלת בשלושה שלבים:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>(1) parse</strong> — ניסיון לפענח את המחרוזת כ-JSON תקין, עם טיפול בכשל parse כשגיאה מפורשת ולא כניסיון "לתקן" את הטקסט.</li>
+            <li><strong>(2) schema check</strong> — השוואת המבנה שהתקבל מול מודל הטיפוסים (Pydantic/Zod), כולל שדות חובה וטווחי ערכים.</li>
+            <li><strong>(3) בדיקות עסקיות</strong> — נוספות בהתאם לתחום, למשל שהקטגוריה קיימת ברשימת הקטגוריות המותרות בפועל, לא רק שהיא מחרוזת.</li>
+          </ul>
+          <p>פלט שנכשל באחד השלבים נדחה או מופעל מחדש (retry) עם הודעת שגיאה חוזרת למודל, ולא מגיע למשתמש או למסד הנתונים כפי שהוא.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בפיצ'ר הוספת מתכון ב-After Taste, גם אם ה-LLM מחזיר JSON תקני מבחינה תחבירית, שכבת Validation חייבת לוודא בנוסף ש-<code>category</code> הוא אחת מחמש הקטגוריות הקיימות בפועל באפליקציה ולא ערך שהמודל "המציא", ושה-<code>servings</code> הוא מספר חיובי הגיוני — לפני כתיבה ל-Supabase.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להריץ Validation דטרמיניסטי (קוד, לא LLM נוסף) כשלב חובה לפני כל כתיבה למסד נתונים.</li>
+          <li><i class="fas fa-check"></i> להגדיר אסטרטגיית retry מפורשת (עם הודעת שגיאה חוזרת למודל) לפלט שנכשל באימות, במקום כשל שקט.</li>
+          <li><i class="fas fa-check"></i> להבחין בין בדיקת מבנה טכני (Validation, הנושא הזה) לבין בדיקת מדיניות ובטיחות תוכן (Guardrails — ראו פרק 8).</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לכתוב פלט LLM גולמי למסד נתונים production בלי שכבת אימות ביניים.</li>
+            <li><i class="fas fa-xmark"></i> לנסות "לתקן" JSON פגום באמצעות מניפולציית מחרוזות (regex) במקום לדחות ולבקש פלט חדש.</li>
+            <li><i class="fas fa-xmark"></i> לבלבל בין Validation טכני (הנושא כאן) לבין Guardrails מדיניות/בטיחות — שני מנגנונים נפרדים בתפקידם.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>Output Validation אינה "בונוס" הנדסי אלא הגבול הדטרמיניסטי היחיד סביב רכיב הסתברותי. כל מערכת שמזרימה פלט LLM למסד נתונים או ללקוח production ללא שכבה זו חשופה לא רק לתקלות, אלא לכשלי שקט — נתונים פגומים שנכנסים למערכת בלי שאף התראה תישלח.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>לעולם לא להכניס פלט LLM גולמי ישירות למסד נתונים או ל-production.</li>
+            <li>שלושה שלבים: parse → schema check → בדיקות עסקיות.</li>
+            <li>Validation = נכונות טכנית; Guardrails = מדיניות ובטיחות (פרק 8).</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="prompt-chaining">
+        <h2 class="topic__title"><i class="fas fa-link"></i> Prompt Chaining</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שרשור מספר קריאות LLM עוקבות, כאשר פלט קריאה אחת משמש כקלט לקריאה הבאה, לעומת ניסיון לפתור את כל המשימה בקריאה מורכבת אחת עם prompt ארוך ורב-שלבי.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>משימה יחידה מורכבת (למשל "חלץ מתכון, תרגם אותו, וסווג לקטגוריה") שנדחסת ל-prompt אחד מגדילה סיכון לכשל חלקי בלתי-ניתן לניפוי — קשה לדעת איזה שלב נכשל. שרשור מפצל את המשימה לקריאות ממוקדות שכל אחת ניתנת לבדיקה, ל-Validation, ולטיפול שגיאות בנפרד.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל קריאה בשרשרת מקבלת prompt ממוקד ופלט מאומת מהשלב הקודם, ומבצעת שלב אחד בלבד. העלות היא לטנסי ועלות API גבוהים יותר (מספר קריאות במקום אחת); התועלת היא דיוק גבוה יותר לכל שלב, יכולת ניפוי תקלות ממוקדת (מזהים בדיוק איזה שלב נכשל), ואפשרות להשתמש במודל שונה או בפרמטרי דגימה שונים לכל שלב לפי צרכיו.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>חילוץ מתכון מטקסט חופשי יכול להתפצל לשרשרת: קריאה ראשונה מחלצת שדות גולמיים, קריאה שנייה מנרמלת יחידות מידה, קריאה שלישית מסווגת לקטגוריה — לעומת prompt יחיד שמנסה לבצע את כל השלושה בבת אחת ומקשה על איתור מקור טעות בפלט הסופי.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לפצל לשרשרת כשמשימה כוללת מספר שלבים לוגיים נפרדים הדורשים דיוק גבוה בכל אחד.</li>
+          <li><i class="fas fa-check"></i> להריץ Validation בין חוליות השרשרת, לא רק בסוף.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לשרשר קריאות למשימה פשוטה שמודל אחד פותר באיכות מספקת בקריאה בודדת, ולשלם עלות ולטנסי מיותרים.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ההחלטה בין prompt יחיד לשרשרת היא trade-off בין עלות/לטנסי לבין דיוק/ניתנות-לניפוי — לא כלל אצבע קבוע. משימה שנכשלת בעקביות בקריאה בודדת היא המועמדת הטבעית לפיצול, לא כל משימה מורכבת מראש.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>שרשור = פלט קריאה אחת הוא קלט לקריאה הבאה.</li>
+            <li>יתרון: דיוק וניפוי תקלות ממוקד; חיסרון: עלות ולטנסי גבוהים יותר.</li>
+            <li>לפצל כשמשימה יחידה נכשלת בעקביות, לא כברירת מחדל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> GitHub Copilot / Cursor</div>
+          <p>עוזרי קוד כמו GitHub Copilot ו-Cursor ממחישים כיצד שלושה מושגי הפרק פועלים יחד במערכת production. כל בקשת עריכה מנוסחת פנימית לפי נוסחת ה-prompt (Role: "עוזר תכנות מומחה בשפת הפרויקט", Task: "בצע את השינוי המבוקש", Constraints: "החזר diff מובנה בלבד", Context: קטעי הקוד הרלוונטיים שנבחרו על ידי Context Engineering — לא הריפו כולו). התשובה חוזרת כ-Structured Output — patch/diff מובנה, לא טקסט חופשי — ועוברת Validation טכני (בדיקת syntax, קיום הקבצים המוזכרים) לפני שהעריכה מוצגת למשתמש להשוואה וקבלה. כשמדובר בשינוי רב-קבצים, המערכת עשויה להפעיל Prompt Chaining — שלב זיהוי קבצים רלוונטיים, ולאחריו שלב יצירת העריכה בפועל — כך שכל שלב ניתן לבדיקה בנפרד.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#api-architecture">ארכיטקטורת בקשת API</a>
+      <a class="toc__link" href="#roles">System / User / Assistant Roles</a>
+      <a class="toc__link" href="#prompt-formula">נוסחת Prompt טוב</a>
+      <a class="toc__link" href="#context-engineering">Context Engineering</a>
+      <a class="toc__link" href="#few-shot-cot">Zero-Shot, Few-Shot ו-CoT</a>
+      <a class="toc__link" href="#structured-output">Structured Output</a>
+      <a class="toc__link" href="#output-validation">Output Validation</a>
+      <a class="toc__link" href="#prompt-chaining">Prompt Chaining</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

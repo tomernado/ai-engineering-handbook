@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG מתקדם — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link is-active" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">RAG מתקדם</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 4</div>
+        <h1><i class="fas fa-layer-group"></i> RAG מתקדם</h1>
+        <p>פרק 3 הציג את תזרים ה-RAG הבסיסי: שאלה הופכת embedding, embedding מאתר מסמכים דומים, מסמכים נכנסים להקשר. תזרים כזה עובד, אך באיכות בינונית — chunking נאיבי שובר הקשר, חיפוש וקטורי לבדו מפספס התאמות מדויקות, והתוצאה הראשונה שמוחזרת מהמסד הוקטורי אינה בהכרח הרלוונטית ביותר בפועל. הפרק הזה עוסק בטכניקות שהופכות RAG בסיסי לפייפליין production-grade: איך לחלק מסמכים נכון, איך לשלב סוגי חיפוש, איך לסנן ולדרג מחדש לפני שהמידע מגיע ל-LLM, ואיך לבחור תשתית ולשפר את השאילתה עצמה לפני שהיא יוצאת לדרך.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="compare-row compare-row--vs">
+          <div class="compare-card">
+            <div class="compare-card__title"><i class="fas fa-arrow-left-long"></i> RAG בסיסי (פרק 3)</div>
+            <p>שאלה → חיפוש וקטורי יחיד → תוצאה ראשונה נכנסת ישירות להקשר.</p>
+          </div>
+          <div class="compare-row__sep">מול</div>
+          <div class="compare-card">
+            <div class="compare-card__title"><i class="fas fa-layer-group"></i> RAG מתקדם (פרק זה)</div>
+            <p>Chunking מודע-מבנה → Hybrid Search → Reranking → רק הקטעים הרלוונטיים באמת מגיעים ל-LLM.</p>
+          </div>
+        </div>
+        <div class="chapter-diagram__caption">אותו רעיון בסיסי — שרשרת שלבים שמעלה משמעותית את איכות המידע שמגיע למודל.</div>
+      </div>
+
+      <section class="topic" id="chunking">
+        <h2 class="topic__title"><i class="fas fa-scissors"></i> אסטרטגיות Chunking</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>Chunking הוא חלוקת מסמכים ארוכים ליחידות טקסט קטנות יותר ("chunks") לפני הפקת embeddings עבורן. שלוש גישות נפוצות:</p>
+          <ul class="term-list">
+            <li><strong>fixed-size</strong> — חלוקה קבועה לפי מספר תווים או טוקנים, ללא התחשבות בתוכן.</li>
+            <li><strong>recursive</strong> — חלוקה היררכית שמנסה לשמור על גבולות מבניים טבעיים (פסקאות, ואם לא ניתן — משפטים, ואם לא — מילים).</li>
+            <li><strong>semantic</strong> — חלוקה לפי גבולות משמעות בפועל, על ידי מדידת דמיון embeddings בין משפטים סמוכים ופיצול במקום שבו הדמיון צונח.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>מסמך שלם ארוך מדי לאחסון כ-embedding יחיד בעל משמעות — embedding אחד ל"מסמך" של עשרות עמודים ממוצע את כל התכנים שבו וקהה כמעט לכל שאילתה ספציפית. חיתוך למקטעים קטנים ומגובשים סמנטית מאפשר שהמאוחזר בפועל יהיה ממוקד. אך יש כאן טרייד-אוף אמיתי: chunk גדול נושא הקשר רחב אך פחות מדויק (עלול לגרור תוכן לא-רלוונטי יחד עם הרלוונטי); chunk קטן מדויק יותר אך עלול לאבד הקשר — משפט בודד שנחתך מפסקתו עלול להיות בלתי-מובן כשלעצמו.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>fixed-size</strong> — פשוט למימוש ומהיר, אך עלול לחתוך באמצע משפט או רעיון ללא כל רגישות לתוכן.</li>
+            <li><strong>recursive</strong> — מנסה קודם לפצל לפי הפרדות מבניות גדולות (כותרות, פסקאות) ורק אם המקטע עדיין גדול מדי יורד לרמת המשפט — כך נשמר מבנה טבעי ברוב המקרים.</li>
+            <li><strong>semantic</strong> — דורש קריאת embedding לכל משפט או יחידה קטנה מראש כדי לזהות את נקודות השבירה, ולכן יקר יותר חישובית, אך מפיק chunks שכל אחד מהם עוסק ברעיון אחד עקבי.</li>
+          </ul>
+          <p>overlap (חפיפה) בין chunks סמוכים — הכללת כמה משפטים אחרונים של chunk אחד בתחילת הבא — נהוג בשלוש הגישות כדי לצמצם אובדן הקשר בגבולות.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כלים כמו Cursor ו-GitHub Copilot, בעת אינדוקס בסיס קוד לצורך codebase-retrieval, אינם מחלקים קבצים לפי מספר תווים קבוע — הם משתמשים בחלוקה מודעת-מבנה (קרובה לגישת recursive) שמכבדת גבולות של פונקציות ומחלקות, כך שכל chunk מייצג יחידת קוד שלמה ובעלת משמעות במקום קטע שרירותי שנחתך באמצע הגדרת פונקציה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתחיל מ-recursive chunking כברירת מחדל סבירה, ולעבור ל-semantic רק כשיש עדות שגבולות תוכן משתנים בתדירות גבוהה בתוך המסמכים.</li>
+          <li><i class="fas fa-check"></i> להוסיף overlap בין chunks סמוכים כדי לצמצם אובדן הקשר בגבול החיתוך.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשתמש ב-fixed-size chunking על תוכן מובנה (קוד, מסמכים משפטיים) ולקבל chunks שחותכים באמצע יחידה לוגית.</li>
+            <li><i class="fas fa-xmark"></i> לבחור גודל chunk אחיד קבוע לכל סוגי המסמכים במערכת, בלי להתאים לאופי התוכן בפועל.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>גודל ה-chunk האופטימלי אינו קבוע אוניברסלי — הוא תלוי בסוג השאילתות הצפויות. מערכת שעונה על שאלות עובדתיות קצרות ("מה מספר הסעיף?") נהנית מ-chunks קטנים וממוקדים; מערכת שצריכה לסכם או להסביר הקשר רחב ("מה ההשלכות של סעיף זה?") נהנית מ-chunks גדולים יותר. אין תשובה אחת נכונה — יש לבדוק אמפירית מול שאילתות אמיתיות של המערכת (ראו faithfulness ו-relevance בנושא <a href="#rag-eval-preview--from--04-advanced-rag.html%23chunking">הערכת RAG</a>).</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>שלוש גישות: fixed-size (פשוט, לא מודע לתוכן), recursive (מכבד מבנה), semantic (מכבד משמעות, יקר יותר).</li>
+            <li>הטרייד-אוף: chunk גדול = הקשר רחב אך פחות מדויק; chunk קטן = מדויק אך עלול לאבד הקשר.</li>
+            <li>overlap בין chunks מצמצם אובדן מידע בגבולות החיתוך.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="hybrid-search">
+        <h2 class="topic__title"><i class="fas fa-magnifying-glass-plus"></i> Hybrid Search</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שילוב שני סוגי חיפוש במקביל על אותו מאגר:</p>
+          <ul class="term-list">
+            <li><strong>BM25</strong> — אלגוריתם דירוג סטטיסטי מבוסס התאמת מילות מפתח (גרסה משוכללת של TF-IDF).</li>
+            <li><strong>חיפוש וקטורי</strong> — דמיון סמנטי מבוסס embeddings (ראו <a href="03-memory-rag.html#embeddings--from--04-advanced-rag.html%23hybrid-search">Embeddings בפרק 3</a>).</li>
+          </ul>
+          <p>תוצאות שני החיפושים ממוזגות לדירוג אחד משולב.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>לכל שיטה יש עיוורון משלים. חיפוש וקטורי מצטיין בתפיסת משמעות גם כשהניסוח שונה לגמרי, אך מפספס לעיתים התאמות מדויקות וקריטיות — שם מוצר ספציפי, מספר סידורי, קוד שגיאה — כי אלו מוטמעים ב-embedding כחלק ממשמעות כללית ולא כזיהוי מדויק. BM25, לעומת זאת, תופס בדיוק את ההתאמות המילוליות המדויקות הללו אך אינו "מבין" נרדפות או ניסוח שונה. שילוב השניים מכסה את שני סוגי הכשלים בו-זמנית.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>אותה שאילתה נשלחת במקביל לשני מנועי החיפוש — BM25 על האינדקס הטקסטואלי, וחיפוש דמיון על האינדקס הוקטורי. כל מנוע מחזיר רשימת מועמדים מדורגת בסולם הציונים שלו. השילוב הנפוץ ביותר, Reciprocal Rank Fusion (RRF), ממזג את שתי הרשימות לפי הדירוג היחסי של כל תוצאה בכל רשימה (לא לפי הציון הגולמי, שאינו בר-השוואה בין שני מנועים שונים), ומפיק רשימה משולבת אחת.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>Perplexity, כמנוע חיפוש-ותשובה מבוסס-LLM, מדגים hybrid search בפועל: הוא לא מסתמך על חיפוש סמנטי בלבד, אלא משלב אחזור מבוסס-מילות-מפתח (כדי לתפוס שמות ומונחים מדויקים משאילתת המשתמש) עם חיפוש סמנטי (כדי לתפוס כוונה ומשמעות), ולאחר מכן מציג ציטוטים למקורות — כך שהתשובה מבוססת גם על דיוק מילולי וגם על הבנת הקשר.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש ב-hybrid search כברירת מחדל בכל מערכת RAG שבה שמות פרטיים, מזהים, או מונחים מדויקים חשובים לשאילתות הצפויות.</li>
+          <li><i class="fas fa-check"></i> למזג תוצאות לפי דירוג יחסי (כגון RRF) ולא לפי ציון גולמי, כי סולמות הציונים של BM25 וחיפוש וקטורי אינם בני-השוואה ישירה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתמך על חיפוש וקטורי בלבד במערכת שבה שאילתות כוללות לעיתים קרובות מזהים או שמות מדויקים.</li>
+            <li><i class="fas fa-xmark"></i> למזג ציונים גולמיים משני מנועים שונים כאילו הם באותו סולם.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>hybrid search הוא לרוב השדרוג הראשון והזול ביותר שיש להוסיף לפייפליין RAG בסיסי שמתפקד באופן בינוני — הוא לא דורש שינוי chunking או מודל embedding, רק הוספת אינדקס טקסטואלי מקביל, ולעיתים קרובות מספק את השיפור הגדול ביותר ביחס למאמץ ההשקעה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>BM25 תופס התאמות מילוליות מדויקות; חיפוש וקטורי תופס משמעות סמנטית.</li>
+            <li>שילוב שניהם מכסה את העיוורונות המשלימים של כל שיטה בנפרד.</li>
+            <li>מיזוג תוצאות נעשה לפי דירוג יחסי (RRF), לא ציון גולמי.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="reranking">
+        <h2 class="topic__title"><i class="fas fa-sort"></i> Reranking</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שלב סינון שני, שמתבצע אחרי אחזור ראשוני (וקטורי, BM25, או hybrid), שבו מודל ייעודי — <strong>cross-encoder</strong> — בוחן כל זוג שאילתה-מסמך יחד באופן ישיר, ומדרג מחדש את המועמדים לפי רלוונטיות מדויקת יותר, לפני שרק חלק קטן מהם (למשל 3-5 המובילים) נשלח בפועל ל-LLM.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>חיפוש וקטורי (bi-encoder) מקודד את השאילתה ואת המסמכים בנפרד לוקטורים ומשווה ביניהם — יעיל וקטן חישובית, אך גס: הוא לא "רואה" את השאילתה והמסמך יחד, רק את הקרבה בין שני ייצוגים שנוצרו בנפרד. Cross-encoder, לעומת זאת, מזין את זוג הטקסטים יחד למודל אחד שמייצר ציון רלוונטיות ישיר — מדויק משמעותית, אך יקר מדי להרצה על כל מסמך במאגר. הפתרון: להשתמש בחיפוש הזול (וקטורי/hybrid) כדי לצמצם למועמדים בודדים, ורק עליהם להריץ את ה-reranking היקר.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שלב האחזור הראשוני (hybrid או וקטורי) מחזיר סט מועמדים רחב יחסית — למשל 20-50 מסמכים. כל אחד מהם נבחן יחד עם השאילתה על ידי מודל cross-encoder שמפיק ציון רלוונטיות בודד לזוג. המועמדים מסודרים מחדש לפי ציון זה, ורק המספר הקטן ביותר שנחוץ בפועל (top-k) נכנס להקשר שנשלח ל-LLM — כך שהמידע שמגיע למודל עבר שני סינונים במקום אחד.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>ב-codebase-retrieval של Cursor, שלב האחזור הראשוני עשוי להחזיר עשרות קטעי קוד מועמדים שנראים דומים סמנטית לשאילתת המשתמש ("איפה מטופלת שגיאת האימות?"), אך רק חלקם רלוונטיים בפועל. שלב reranking בוחן כל קטע יחד עם השאילתה ומדרג אותם מחדש, כך שרק הקטעים הרלוונטיים ביותר באמת — לרוב הגדרת הפונקציה המטפלת בשגיאה עצמה, לא כל מקום שמזכיר "אימות" — מגיעים בפועל להקשר של המודל.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להריץ reranking על סט מועמדים רחב יחסית מהאחזור הראשוני (לא רק על top-3), כדי שלא יאבדו מועמדים טובים שדורגו נמוך בטעות בשלב הזול.</li>
+          <li><i class="fas fa-check"></i> להגביל את מספר המסמכים שעוברים בפועל ל-LLM אחרי reranking, כדי לשמור על תקציב טוקנים (ראו <a href="03-memory-rag.html#token-budgeting--from--04-advanced-rag.html%23reranking">Token Budgeting בפרק 3</a>).</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להריץ cross-encoder על כל מסמך במאגר במקום רק על מועמדים שכבר סוננו — יקר מדי לקנה מידה.</li>
+            <li><i class="fas fa-xmark"></i> לדלג על reranking במערכת שבה איכות התשובה קריטית, ולהסתפק בדירוג הגס של החיפוש הראשוני בלבד.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>reranking הוא דוגמה קלאסית לארכיטקטורת "זול-ואז-יקר" (retrieve-then-rerank) שחוזרת בהנדסת AI: שלב ראשון רחב וזול מצמצם את מרחב האפשרויות, שלב שני צר ויקר מדייק את התוצאה הסופית. אותו עיקרון מופיע גם מחוץ ל-RAG, בכל מקום שבו יש טרייד-אוף בין כיסוי לדיוק.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>cross-encoder בוחן שאילתה ומסמך יחד — מדויק יותר אך יקר יותר מחיפוש וקטורי.</li>
+            <li>ארכיטקטורת retrieve-then-rerank: אחזור רחב וזול, ואז דירוג מחדש צר ויקר.</li>
+            <li>רק top-k אחרי reranking מגיע בפועל ל-LLM.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="vector-db-comparison">
+        <h2 class="topic__title"><i class="fas fa-table"></i> השוואת Vector DB</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>ארבע משפחות פתרונות נפוצות למסד נתונים וקטורי (ראו <a href="03-memory-rag.html#vector-db-basics--from--04-advanced-rag.html%23vector-db-comparison">יסודות Vector DB בפרק 3</a>): Pinecone, Weaviate, pgvector, ו-Chroma — כל אחד עם מיצוב ארכיטקטוני שונה מהותית, לא רק הבדלי תכונות שטחיים.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בחירת Vector DB היא החלטת תשתית עם השלכות ארוכות-טווח על תפעול, עלות תחזוקה, ומורכבות המערכת — לא רק על מהירות חיפוש. התאמה בין אופי הפרויקט (סטאק קיים, היקף נתונים, שלב פיתוח) לבין מיצוב הפתרון חשובה יותר מהשוואת benchmarks נקודתית.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ההבדל המרכזי בין הפתרונות הוא ציר Hosting (מנוהל לחלוטין מול self-hosted) וציר יעד השימוש (פרוטוטייפ קליל מול מערכת production בהיקף גדול). הטבלה הבאה מסכמת מאפיינים ארכיטקטוניים יציבים, לא נתוני תמחור או features נקודתיים העלולים להתיישן.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <table>
+            <thead>
+              <tr>
+                <th>מסד נתונים</th>
+                <th>Hosting</th>
+                <th>שאילתות היברידיות</th>
+                <th>קלות התקנה</th>
+                <th>מתאים ל-</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Pinecone</td>
+                <td>מנוהל לחלוטין (SaaS)</td>
+                <td>יש</td>
+                <td>גבוהה — אין תשתית לתחזק</td>
+                <td>צוותים שרוצים לוותר לגמרי על תחזוקת תשתית וקטורית</td>
+              </tr>
+              <tr>
+                <td>Weaviate</td>
+                <td>open-source, self-hosted או מנוהל</td>
+                <td>יש, מובנה בליבת המוצר</td>
+                <td>בינונית</td>
+                <td>מערכות שצריכות hybrid search מובנה עם שליטה על התשתית</td>
+              </tr>
+              <tr>
+                <td>pgvector</td>
+                <td>self-hosted, הרחבת PostgreSQL</td>
+                <td>ניתן לשלב עם חיפוש טקסט מלא של Postgres</td>
+                <td>גבוהה כאשר כבר קיים Postgres בסטאק</td>
+                <td>פרויקטים עם Postgres קיים, שרוצים להימנע ממערכת נפרדת</td>
+              </tr>
+              <tr>
+                <td>Chroma</td>
+                <td>self-hosted, קליל</td>
+                <td>מוגבל</td>
+                <td>גבוהה מאוד — הרצה מקומית מיידית</td>
+                <td>פרוטוטייפים, פרויקטים קטנים, שלבי פיתוח מוקדמים</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לבחור pgvector כברירת מחדל טבעית כשכבר קיים PostgreSQL בסטאק — חוסך מסד נתונים נפרד לגמרי.</li>
+          <li><i class="fas fa-check"></i> להתחיל פרוטוטייפ ב-Chroma לפני מעבר לפתרון production, במקום להשקיע בתשתית מנוהלת מוקדם מדי.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבחור פתרון לפי היקף וגודל שמות בלוגים בלבד, בלי לבדוק התאמה לסטאק הקיים בפועל.</li>
+            <li><i class="fas fa-xmark"></i> להקים מסד וקטורי נפרד כשכבר קיים Postgres שיכול לשמש עם pgvector, ולהכפיל מורכבות תפעולית שלא לצורך.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>השאלה הנכונה אינה "מי הכי מהיר" אלא "מה מוסיף הכי פחות מורכבות תפעולית לסטאק הקיים". צוות עם Postgres מתופעל היטב ירוויח יותר מ-pgvector, גם אם benchmark טהור מראה יתרון ל-Pinecone — כי עלות התחזוקה של מערכת נוספת לרוב עולה על יתרון הביצועים.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Pinecone = מנוהל לחלוטין; Weaviate = open-source עם hybrid search מובנה.</li>
+            <li>pgvector = מתאים כשכבר יש Postgres בסטאק; Chroma = קליל לפרוטוטייפים.</li>
+            <li>ההתאמה לסטאק הקיים חשובה יותר מהשוואת benchmarks נקודתית.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="query-transformation">
+        <h2 class="topic__title"><i class="fas fa-wand-magic-sparkles"></i> Query Transformation</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>משפחת טכניקות לשיפור שאילתת החיפוש עצמה, לפני שהיא נשלחת לאחזור, באמצעות LLM. שתי הטכניקות המרכזיות:</p>
+          <ul class="term-list">
+            <li><strong>HyDE</strong> (Hypothetical Document Embeddings) — יצירת מסמך "תשובה" היפותטי ודמיוני על ידי LLM, וחיפוש לפי ה-embedding של המסמך ההיפותטי הזה במקום לפי השאלה המקורית.</li>
+            <li><strong>Multi-Query</strong> — יצירת כמה ניסוחים שונים לאותה שאלה על ידי LLM, והרצת חיפוש עם כולם במקביל.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שאלה קצרה בשפה טבעית ("איך מגדירים timeout?") שונה מבנית ממסמך תשובה אמיתי ("כדי להגדיר timeout, יש לקבוע את הפרמטר..."), ולכן ה-embedding שלה עלול להיות רחוק במרחב הוקטורי מה-embedding של המסמך הרלוונטי ביותר, גם אם התוכן קשור ישירות. HyDE פותר את הפער הזה — embedding של "תשובה" מדומה דומה סמנטית יותר למסמכי תשובה אמיתיים מאשר embedding של שאלה. Multi-Query פותר בעיה שונה: שאלה בודדת עלולה להיות מנוסחת בצורה שמפספסת מסמכים רלוונטיים המשתמשים בטרמינולוגיה שונה — כמה ניסוחים מגדילים את סיכויי הכיסוי.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <ul class="term-list term-list--how">
+            <li><strong>HyDE</strong> — קריאת LLM נפרדת ומקדימה מייצרת מסמך תשובה היפותטי (גם אם לא מדויק עובדתית — הוא משמש רק לחיפוש, לא כתשובה סופית), ואז ה-embedding של המסמך הזה, ולא של השאלה המקורית, משמש לחיפוש דמיון במסד הוקטורי.</li>
+            <li><strong>Multi-Query</strong> — קריאת LLM מייצרת מספר ניסוחים חלופיים לשאלה, כל ניסוח מופעל כחיפוש בנפרד, ותוצאות כל החיפושים ממוזגות (לרוב תוך הסרת כפילויות) לרשימת מועמדים אחת מורחבת יותר מהמקור.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>לשאלה "מה עדיף — Pinecone או pgvector?", HyDE יגרום ל-LLM לייצר קטע טקסט שנשמע כמו קטע מתוך מדריך השוואת מסדי נתונים ("Pinecone הוא פתרון מנוהל בעוד pgvector הוא הרחבת PostgreSQL...") — embedding שכזה קרוב הרבה יותר במרחב הוקטורי למסמכי ההשוואה האמיתיים במאגר מאשר embedding של השאלה הקצרה המקורית.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש ב-HyDE כאשר שאלות המשתמשים קצרות ותמציתיות בעוד מסמכי המקור ארוכים ומנוסחים בסגנון תשובה/הסבר.</li>
+          <li><i class="fas fa-check"></i> לשלב Multi-Query עם hybrid search ו-reranking — הרחבת כיסוי משתלמת רק אם יש שלב סינון איכותי בהמשך שמונע הצפת LLM במסמכים לא-רלוונטיים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להתעלם מכך ש-HyDE ו-Multi-Query מוסיפים קריאת LLM נוספת (ולכן latency ועלות) לפני שהאחזור בכלל מתחיל.</li>
+            <li><i class="fas fa-xmark"></i> לסמוך על המסמך ההיפותטי שנוצר ב-HyDE כמקור מידע — הוא כלי חיפוש בלבד, לא תשובה אמיתית ועלול להכיל תוכן שגוי לחלוטין.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>query transformation ממחישה עיקרון רחב יותר ב-RAG מתקדם: לא כל שיפור חייב לקרות בצד המסמכים (chunking, אינדוקס) — לעיתים נקודת המינוף הגבוהה ביותר היא בצד השאילתה עצמה, לפני שהיא בכלל פוגשת את מסד הנתונים הוקטורי.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>HyDE: מחפשים לפי embedding של תשובה היפותטית, לא לפי השאלה עצמה.</li>
+            <li>Multi-Query: כמה ניסוחים לאותה שאלה מגדילים כיסוי חיפוש.</li>
+            <li>שתי הטכניקות מוסיפות קריאת LLM ולכן עלות ו-latency לפני האחזור.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="agentic-rag-preview">
+        <h2 class="topic__title"><i class="fas fa-robot"></i> Agentic RAG</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>תבנית שבה retrieval הופך מ-שלב קבוע שמתבצע אוטומטית בתחילת כל תשובה, לכלי (tool) שה-Agent בוחר בעצמו מתי ואיך להפעיל.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>לא כל שאלה דורשת אחזור, ולעיתים נדרשים כמה סבבי אחזור מדורגים לפני שיש מספיק מידע לענות — retrieval קבוע-מראש לא מתאים לשני המקרים הללו.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>ה-Agent מקבל retrieval כאחד מכלי ה-tools העומדים לרשותו, ומחליט בכל צעד בתהליך ההיגיון שלו האם, מתי, ובאיזו שאילתה לקרוא לו — בדיוק כמו כל tool אחר.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>Agent שנשאל שאלה מורכבת עשוי לבצע אחזור ראשוני, לגלות שהתשובה חלקית, ולבצע אחזור נוסף ממוקד יותר לפני שהוא מנסח תשובה סופית — במקום אחזור בודד וקבוע.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להימנע מהפעלת retrieval אוטומטית בכל בקשה כשלא כל שאלה דורשת ידע חיצוני.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לכפות אחזור בודד וקבוע במערכות שבהן שאלות מורכבות דורשות מספר סבבי חיפוש מדורגים.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>המעבר מ-RAG קבוע ל-Agentic RAG הוא ביטוי ספציפי של מעבר רחב יותר בתעשייה: מפייפליינים דטרמיניסטיים לתהליכים שבהם המודל עצמו מחליט על רצף הפעולות. להרחבה על Agent Patterns ראו <a href="06-agent-patterns.html#react-pattern--from--04-advanced-rag.html%23agentic-rag-preview">פרק 6</a>.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>ב-Agentic RAG, retrieval הוא tool שה-Agent קורא לו לפי שיקול דעת, לא שלב קבוע.</li>
+            <li>מאפשר אחזור מדורג ומספר סבבים כשנדרש.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="rag-eval-preview">
+        <h2 class="topic__title"><i class="fas fa-clipboard-check"></i> הערכת איכות RAG</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>בדיקת איכות פייפליין RAG לאורך שני צירים נפרדים:</p>
+          <ul class="term-list">
+            <li><strong>faithfulness</strong> — האם התשובה נאמנה למסמכים שאוחזרו בפועל.</li>
+            <li><strong>relevance</strong> — האם המסמכים שאוחזרו רלוונטיים לשאלה מלכתחילה.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>תשובה טובה יכולה להיכשל בשני מקומות נפרדים — אחזור גרוע (מסמכים לא-רלוונטיים) או generation גרוע (התעלמות מהמסמכים שכן אוחזרו) — ובלי למדוד את שניהם בנפרד אי אפשר לדעת איפה לתקן.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>relevance נמדדת ברמת שלב האחזור בלבד, בלי קשר לתשובה הסופית; faithfulness נמדדת בהשוואה בין תוכן התשובה לתוכן המסמכים שסופקו כהקשר, בדרך כלל באמצעות LLM-as-judge.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>מערכת עשויה לאחזר מסמכים רלוונטיים מאוד (relevance גבוה) אך עדיין להפיק תשובה שמוסיפה פרט שלא מופיע באף מסמך (faithfulness נמוך) — שני המדדים חושפים בעיות שונות לחלוטין.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> למדוד faithfulness ו-relevance בנפרד, לא כציון מאוחד יחיד.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להסתפק בהערכת "התשובה נשמעת טובה" בלי לבדוק אם היא נאמנה למקורות שאוחזרו בפועל.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הפרדת faithfulness מ-relevance היא מה שהופך דיבוג RAG מניחוש למדיד — כשל ידוע בשלב הנכון מקצר משמעותית זמן תיקון. להרחבה על Evaluation ראו <a href="07-evaluation.html#rag-eval-metrics--from--04-advanced-rag.html%23rag-eval-preview">פרק 7</a>.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>faithfulness = נאמנות התשובה למסמכים; relevance = רלוונטיות המסמכים לשאלה.</li>
+            <li>יש למדוד את שני הצירים בנפרד כדי לאתר את מקור הכשל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> Cursor / GitHub Copilot — פייפליין codebase-retrieval</div>
+          <p>כלי עריכת קוד מבוססי AI כמו Cursor ו-GitHub Copilot ממחישים כיצד כל נושאי הפרק פועלים יחד בפייפליין אחד. בשלב האינדוקס, בסיס הקוד עובר <a href="#chunking--from--04-advanced-rag.html%23real-world-example">chunking</a> מודע-מבנה שמכבד גבולות של פונקציות ומחלקות במקום חיתוך שרירותי. כשהמשתמש שואל שאלה או מבקש שינוי, המערכת מריצה <a href="#hybrid-search--from--04-advanced-rag.html%23real-world-example">חיפוש היברידי</a> — התאמת מילות מפתח מדויקת לשמות פונקציות ומשתנים לצד חיפוש סמנטי לכוונה הכללית — ומצמצמת סט מועמדים רחב. שלב <a href="#reranking--from--04-advanced-rag.html%23real-world-example">reranking</a> בוחן את המועמדים יחד עם השאילתה ומדרג מחדש כדי שרק קטעי הקוד הרלוונטיים ביותר באמת יגיעו להקשר. במקרים מורכבים יותר, הכלי פועל באופן <a href="#agentic-rag-preview--from--04-advanced-rag.html%23real-world-example">Agentic</a>: הוא עשוי לבצע כמה סבבי אחזור מדורגים — לחפש הגדרת פונקציה, ואז לחפש את כל מקומות הקריאה לה — לפני שהוא מציע שינוי קוד. השילוב הזה, לא כל טכניקה בפני עצמה, הוא מה שמאפשר לכלי כזה להבין הקשר בבסיס קוד בן מאות אלפי שורות תוך שניות בודדות.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#chunking">אסטרטגיות Chunking</a>
+      <a class="toc__link" href="#hybrid-search">Hybrid Search</a>
+      <a class="toc__link" href="#reranking">Reranking</a>
+      <a class="toc__link" href="#vector-db-comparison">השוואת Vector DB</a>
+      <a class="toc__link" href="#query-transformation">Query Transformation</a>
+      <a class="toc__link" href="#agentic-rag-preview">Agentic RAG</a>
+      <a class="toc__link" href="#rag-eval-preview">הערכת איכות RAG</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

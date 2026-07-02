@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents & Modern AI — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link is-active" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">Agents & Modern AI</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 5</div>
+        <h1><i class="fas fa-robot"></i> Agents & Modern AI</h1>
+        <p>עד כה עסקנו במודל שמקבל הקשר (פרק 2) ומרחיב אותו במידע חיצוני (פרקים 3-4), אך תמיד באותה תבנית: קלט אחד, תשובת טקסט אחת. הפרק הזה עוסק במעבר לתבנית שונה מהותית — מודל שיכול לפעול על העולם, לא רק לתאר אותו. function calling מספק את הבסיס הטכני שמאפשר למודל להחזיר קריאה מובנית במקום טקסט חופשי; tool calling מרחיב זאת לבחירה בין כלים מרובים; agent loop הופך את זה לתהליך איטרטיבי שבו המודל מתכנן, פועל, ומגיב לתוצאות בחזרה. לצד זאת נסקור MCP כפרוטוקול לחיבור כלים, vision כערוץ קלט נוסף מעבר לטקסט, ומודלי reasoning שמבצעים תהליך חשיבה פנימי לפני מתן תשובה.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-user"></i> User</div><div class="flow-step__desc">בקשה ראשונית</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-route"></i> Planner</div><div class="flow-step__desc">קובע פעולה הבאה</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-toolbox"></i> Tools</div><div class="flow-step__desc">מפעיל כלי בפועל</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-microchip"></i> LLM</div><div class="flow-step__desc">מעבד תוצאה, מחליט אם לחזור ללולאה</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-reply"></i> Response</div><div class="flow-step__desc">תשובה סופית</div></div>
+        </div>
+        <div class="chapter-diagram__caption">לולאת ה-Agent הבסיסית — לא קריאה חד-פעמית, אלא תהליך שחוזר על עצמו עד שהמשימה הושלמה.</div>
+      </div>
+
+      <section class="topic" id="function-calling">
+        <h2 class="topic__title"><i class="fas fa-code"></i> Function Calling</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>יכולת של LLM להחזיר, במקום תשובת טקסט חופשי, פלט מובנה המייצג קריאה לפונקציה — שם הפונקציה ופרמטרים תואמי-schema — כדי שקוד צד-לקוח יריץ אותה בפועל. המודל עצמו אינו מריץ קוד; הוא רק מפיק את הבקשה המובנית, וקוד חיצוני מבצע אותה ומחזיר את התוצאה חזרה למודל.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>טקסט חופשי אינו ניתן לביצוע אוטומטי באופן אמין — פענוח בקשה כמו "תבדוק את מזג האוויר בתל אביב" מתוך פרוזה חופשית דורש parsing שביר ורגיש לניסוח. function calling פותר את זה בשורש: המודל מאומן ו/או מונחה להפיק JSON תואם-schema קבוע מראש, כך שקוד צד-לקוח יכול לסמוך על המבנה ולהריץ אותו ישירות בלי היסק לשוני נוסף. זהו הבסיס הטכני שעליו נבנים tool calling ו-agents כולם — בלעדיו, שום פעולה מהימנה מצד המודל אינה אפשרית.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>קריאת ה-API כוללת הגדרת פונקציה — שם, תיאור, ו-schema של הפרמטרים (בדרך כלל JSON Schema). המודל מקבל את ההגדרה יחד עם הקלט, ובמקום להחזיר טקסט רגיל הוא עשוי להחזיר אובייקט מובנה שמזהה את שם הפונקציה ואת ערכי הפרמטרים שחילץ מהבקשה. קוד צד-לקוח מקבל את האובייקט הזה, מריץ את הפונקציה המתאימה בפועל (קריאת API חיצונית, שאילתה למסד נתונים, חישוב), ומחזיר את התוצאה למודל כהודעה נוספת בשיחה כדי שיוכל לנסח תשובה סופית בהתבסס עליה.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>גם Claude וגם מודלי GPT תומכים ב-function calling כחלק מובנה מה-API: מפתח מגדיר פונקציה כמו <code>get_weather(city: string)</code>, ובבקשה "מה מזג האוויר בתל אביב?" המודל מחזיר קריאה מובנית <code>get_weather(city="Tel Aviv")</code> במקום לנחש תשובה מתוך הידע שנצבר באימונו — כך התשובה מבוססת על נתון עדכני אמיתי שהתקבל מקריאה בפועל.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר schema מדויק וממוקד לכל פונקציה — שמות פרמטרים ברורים ותיאורים מפורטים משפרים משמעותית את דיוק החילוץ של המודל.</li>
+          <li><i class="fas fa-check"></i> להחזיר תמיד את תוצאת הפונקציה כהודעה בשיחה, גם כאשר הביצוע נכשל — כישלון שקוף עדיף על היעדר תגובה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להניח שהמודל עצמו מריץ את הפונקציה — הוא רק מפיק את הבקשה המובנית; ביצוע בפועל הוא באחריות הקוד הצד-לקוח.</li>
+            <li><i class="fas fa-xmark"></i> להגדיר schema עמום או פרמטרים ללא תיאור, מה שמוביל לחילוץ פרמטרים שגוי או חסר.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>function calling הוא נקודת המפנה שממנה LLM הופך מ"מחולל טקסט" ל"רכיב תוכנה שאפשר לשלב בפייפליין". איכות ה-schema קובעת ישירות את אמינות המערכת — schema מעורפל מייצר קריאות שגויות בשקט, לא שגיאות גלויות, ולכן קשה לאתר בזמן ריצה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>function calling = פלט מובנה (שם + פרמטרים) במקום טקסט חופשי; הביצוע עצמו קורה בקוד צד-לקוח.</li>
+            <li>schema מדויק וברור משפר משמעותית את דיוק החילוץ.</li>
+            <li>זהו הבסיס הטכני ל-tool calling ול-agents.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="tool-calling">
+        <h2 class="topic__title"><i class="fas fa-toolbox"></i> Tool Calling</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הרחבה מעשית של function calling: המודל מקבל רשימת "כלים" זמינים, כל אחד עם schema משלו, ובוחר בעצמו איזה כלי (אם בכלל) להפעיל ומתי — כחלק מתהליך רב-שלבי, לא כקריאה בודדת.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>משימות אמיתיות דורשות שילוב של יכולות שונות — חיפוש, חישוב, קריאה למסד נתונים — והמודל צריך להחליט לבד אילו מהן רלוונטיות לבקשה נתונה, בסדר הנכון.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל הכלים מוגדרים מראש בקריאת ה-API; המודל בוחר כלי (או אף אחד, אם תשובת טקסט ישירה מספיקה), מקבל את התוצאה, ולעיתים בוחר כלי נוסף בהתבסס עליה — לולאה שמתוארת בהרחבה בנושא <a href="#agent-loop--from--05-agents.html%23tool-calling">Agent Loop</a>.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כלים agentic לכתיבת קוד כמו Cursor ו-GitHub Copilot מקבלים ערכת כלים — קריאת קובץ, חיפוש בבסיס קוד, הרצת פקודת terminal — ובוחרים דינמית איזה כלי מפעילים בכל שלב בהתאם למשימה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגביל את מספר הכלים הזמינים בכל קריאה למינימום הרלוונטי — עומס כלים גדול מדי פוגע בדיוק הבחירה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לחשוף עשרות כלים בבת אחת בלי סינון לפי הקשר המשימה.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>tool calling הוא function calling פלוס שיקול דעת — ההבדל בין "המודל יודע להפיק JSON" לבין "המודל יודע מתי כדאי להשתמש בו".</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>tool calling = בחירה בין כלים מרובים כחלק מתהליך רב-שלבי.</li>
+            <li>עומס כלים גדול מדי פוגע בדיוק הבחירה של המודל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="agent-loop">
+        <h2 class="topic__title"><i class="fas fa-arrows-rotate"></i> Agent Loop</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מבנה הבקרה שהופך tool calling מקריאה חד-פעמית לתהליך איטרטיבי: בקשת המשתמש עוברת תכנון, הפעלת כלים, קריאה חוזרת ל-LLM עם התוצאות, וחזרה על הצעד הזה עד שיש מספיק מידע לתשובה סופית.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>משימות מורכבות אינן נפתרות בקריאת כלי בודדת — לעיתים תוצאת כלי אחד חושפת שנדרש כלי נוסף, או שהתוצאה חלקית ודורשת ניסוח מחדש. לולאה מאפשרת למודל להגיב לתוצאות ביניים במקום להתחייב מראש לרצף פעולות קבוע.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>הבקשה נכנסת, שלב תכנון (מפורש או מרומז בתוך המודל עצמו) קובע איזו פעולה נדרשת, כלי מופעל, התוצאה חוזרת ל-LLM כהקשר נוסף, וה-LLM מחליט אם יש מספיק מידע לתשובה סופית או שנדרש סבב נוסף בלולאה. התהליך נעצר כשה-LLM מפיק תשובת טקסט סופית במקום קריאת כלי נוספת, או כשמגיעים למגבלת איטרציות שהוגדרה מראש.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-user"></i> User</div><div class="flow-step__desc">בקשת המשתמש המקורית</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-diagram-project"></i> Planner</div><div class="flow-step__desc">קביעת הפעולה הנדרשת הבאה</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-toolbox"></i> Tools</div><div class="flow-step__desc">הפעלת כלי בפועל וקבלת תוצאה</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-brain"></i> LLM</div><div class="flow-step__desc">עיבוד התוצאה, החלטה על סבב נוסף או תשובה</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-reply"></i> Response</div><div class="flow-step__desc">תשובה סופית — או חזרה ל-Planner</div></div>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בבקשה "תקן את הבאג בטיפול בשגיאות אימות", כלי agentic לכתיבת קוד יבצע כמה סבבים בלולאה: חיפוש בבסיס הקוד למציאת הקוד הרלוונטי, קריאת הקובץ, ניתוח הבעיה, עריכה, ולבסוף הרצת בדיקות לאימות התיקון — כל שלב מזין את הבא, לא רצף קבוע מראש.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר מגבלת איטרציות מקסימלית ללולאה, כדי למנוע ריצה אינסופית או עלות בלתי-מבוקרת.</li>
+          <li><i class="fas fa-check"></i> להזין למודל את תוצאות הכלי בפורמט ברור וממוקד, כדי שההחלטה על הצעד הבא תתבסס על מידע נקי.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להתייחס ל-agent כאל קריאת כלי בודדת ולצפות שהוא יפתור משימה רב-שלבית בצעד אחד.</li>
+            <li><i class="fas fa-xmark"></i> להריץ לולאה ללא מגבלת עצירה, מה שעלול לגרור עלות וזמן ריצה בלתי-צפויים במקרה של תקיעות לוגית.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ההבדל המהותי בין "מודל עם כלים" ל"agent" הוא הלולאה עצמה — לא מספר הכלים הזמינים. מערכת עם כלי בודד שמופעל פעם אחת אינה agent; מערכת שיודעת להגיב לתוצאותיה שלה ולהחליט על צעד הבא היא כן, גם אם יש לה רק כלי אחד זמין.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הלולאה: User → Planner → Tools → LLM → Response, עם חזרה כשצריך.</li>
+            <li>זו לולאה איטרטיבית, לא קריאה חד-פעמית — ההחלטה על הצעד הבא נעשית בכל סבב.</li>
+            <li>מגבלת איטרציות חובה כדי למנוע ריצה בלתי-מבוקרת.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="multi-agent-intro">
+        <h2 class="topic__title"><i class="fas fa-people-group"></i> מבוא ל-Multi-Agent</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מערכות שבהן כמה agents מתמחים משתפים פעולה על אותה משימה, במקום agent כללי בודד — לדוגמה agent אחד שמתכנן, אחד שמבצע, ואחד שבודק את התוצאה.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>agent בודד עם prompt כללי מדי נוטה להתפזר במשימות מורכבות ורב-תחומיות. פיצול לתפקידים מתמחים — כל אחד עם prompt, כלים, ולעיתים אף מודל מותאמים לתפקידו — משפר מיקוד ואיכות, במחיר מורכבות תזמור נוספת.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כל אחד רץ כתהליך עצמאי יחסית עם תחום אחריות מוגדר:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>Agent מתכנן</strong> — מפרק את המשימה לתת-משימות.</li>
+            <li><strong>Agent מבצע</strong> — מריץ אותן (כולל agent loop משלו).</li>
+            <li><strong>Agent בודק</strong> — מאמת את התוצאה לפני מסירתה למשתמש או חזרה לתיקון.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>במשימת פיתוח תכונה מורכבת, agent מתכנן עשוי לפרק אותה לצעדים, agent מבצע כותב את הקוד לכל צעד, ו-agent בודק מריץ בדיקות ומחזיר משוב לפני שהתוצאה נחשבת מוכנה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להפריד תפקידים כאשר יש עדות שסוכן כללי בודד מתפזר או מפספס שלבי אימות במשימה מורכבת.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לפצל למספר agents משימה פשוטה שסוכן בודד היה פותר באותה איכות, ולהוסיף מורכבות תזמור שלא לצורך.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>multi-agent אינו ברירת מחדל — הוא פתרון לבעיה ספציפית של פיזור תשומת לב במשימות רב-תחומיות, ומגיע במחיר תזמור ותקשורת בין-סוכנית. להרחבה על דפוסי תזמור multi-agent ראו <a href="06-agent-patterns.html#orchestration-patterns--from--05-agents.html%23multi-agent-intro">פרק 6</a>.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>multi-agent = agents מתמחים משתפים פעולה (למשל: מתכנן, מבצע, בודק).</li>
+            <li>משפר מיקוד ואיכות במשימות מורכבות, במחיר מורכבות תזמור.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="mcp">
+        <h2 class="topic__title"><i class="fas fa-network-wired"></i> MCP — Model Context Protocol</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>פרוטוקול אחיד לחיבור כלים ומקורות מידע חיצוניים למודלים, במקום אינטגרציה מותאמת-אישית לכל שילוב כלי-מודל בנפרד.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בלי פרוטוקול אחיד, חיבור M כלים ל-N מודלים שונים דורש עד M×N אינטגרציות נפרדות — כל כלי חדש דורש עבודת אינטגרציה מול כל מודל, וכל מודל חדש דורש עבודה מול כל כלי קיים. MCP הופך את זה לבעיה לינארית: כלי שמדבר MCP זמין לכל מודל שתומך ב-MCP, וכל מודל שתומך ב-MCP יכול לדבר עם כל כלי כזה, ללא קוד אינטגרציה ייעודי לכל זוג.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שרת MCP חושף ממשק אחיד — רשימת כלים, מקורות מידע, ו-schema מוגדר — וכל לקוח (סביבת agent, כלי עריכה, אפליקציה) שתומך בפרוטוקול יכול להתחבר אליו ולהשתמש בכלים שהוא חושף באותה צורה, בלי קשר לאיזה מודל מריץ את הבקשה בפועל.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>שרת MCP שחושף גישה למסד נתונים ארגוני נכתב פעם אחת, ואז זמין לכל סביבת agent תומכת-MCP — בין אם מריצה אותה Claude או מודל אחר — בלי לכתוב שכבת אינטגרציה נפרדת לכל שילוב.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לחשוף כלים ומקורות מידע פנימיים דרך שרת MCP אחד במקום אינטגרציה נקודתית לכל סביבת agent בנפרד.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבנות אינטגרציה ייעודית לכל שילוב כלי-מודל כשקיים כבר שרת MCP רלוונטי, ולשכפל עבודה שלא לצורך.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>MCP פותר בעיה ארגונית, לא רק טכנית: ברגע שכלי פנימי חשוף כשרת MCP, כל צוות בארגון שמפעיל agents יכול לצרוך אותו מבלי לתאם קוד אינטגרציה מול הצוות שבנה את הכלי.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>MCP הופך M×N אינטגרציות לבעיה לינארית — פרוטוקול אחד במקום התאמה לכל זוג כלי-מודל.</li>
+            <li>שרת MCP נכתב פעם אחת וזמין לכל לקוח תומך-פרוטוקול.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="vision">
+        <h2 class="topic__title"><i class="fas fa-eye"></i> Vision — קלט חזותי</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>יכולת של מודל multimodal לעבד תמונה כקלט לצד טקסט — לקדד את התוכן החזותי לייצוג שהמודל יכול לנמק לגביו יחד עם שאר ההקשר של השיחה.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>הרבה משימות מתחילות בקלט שאינו טקסטואלי מטבעו — צילום מסך של שגיאה, תרשים, טופס סרוק. תיאור מילולי של תמונה על ידי המשתמש מאבד מידע ודורש מאמץ; קלט חזותי ישיר מאפשר למודל לנמק ישירות על התוכן כפי שהוא.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>התמונה עוברת קידוד ויזואלי — רכיב ייעודי שממיר את הפיקסלים לייצוג שהמודל השפתי יכול לעבד. הייצוג הזה משולב לתוך ה-Context יחד עם הטקסט, כך שהמודל מנמק על שניהם באותו תהליך הסקה אחד, ולא כשני שלבים נפרדים.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-image"></i> Image</div><div class="flow-step__desc">קלט חזותי גולמי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-eye"></i> Vision</div><div class="flow-step__desc">קידוד ויזואלי לייצוג פנימי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-layer-group"></i> Context</div><div class="flow-step__desc">שילוב הייצוג החזותי עם הטקסט</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-brain"></i> LLM</div><div class="flow-step__desc">נימוק משותף על טקסט ותמונה יחד</div></div>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>כלי agentic לכתיבת קוד יכול לקבל צילום מסך של שגיאת רינדור בממשק, לקדד אותו כקלט חזותי, ולשלב אותו בהקשר יחד עם קוד הקומפוננטה — כך שהוא מנמק על הפער בין הכוונה בקוד לתוצאה החזותית בפועל בלי שהמשתמש יצטרך לתאר את התקלה במילים.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להעדיף העברת תמונה ישירה על פני תיאור מילולי שלה כשהמשימה תלוית פרטים חזותיים מדויקים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבקש מהמשתמש לתאר תמונה במילים כשניתן פשוט לספק אותה כקלט ישיר למודל תומך-vision.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>vision אינו "פיצ'ר נוסף" אלא ערוץ קלט שווה-מעמד לטקסט בתוך אותו Context — ברגע שהתמונה מקודדת, המודל אינו מבחין מבנית בין "עובדה שנקראה מטקסט" ל"עובדה שנצפתה בתמונה"; שתיהן חלק מאותו הקשר לנימוק.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הזרימה: Image → Vision → Context → LLM.</li>
+            <li>קלט חזותי משולב ל-Context יחד עם הטקסט, לא מעובד כשלב נפרד מבודד.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="reasoning-models">
+        <h2 class="topic__title"><i class="fas fa-brain"></i> מודלי Reasoning</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מודלים בעלי "חשיבה מורחבת" (extended thinking / reasoning tokens) המבצעים תהליך חשיבה פנימי — פירוק הבעיה, בדיקת חלופות, תיקון עצמי — לפני הפקת התשובה הסופית המוצגת למשתמש.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בעיות מורכבות רב-שלביות — הוכחה מתמטית, ניתוח לוגי מרובה-תנאים, תכנון עם תלויות — נהנות מתהליך חשיבה מפורש שמאפשר למודל לבדוק ולתקן את עצמו לפני שהוא "מתחייב" לתשובה. עבור משימות פשוטות ועובדתיות, אותו תהליך חשיבה מוסיף latency ועלות ללא שיפור תואם באיכות התשובה — היתרון תלוי-משימה, לא גורף.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>לפני הפקת התשובה הגלויה, המודל מייצר רצף "מחשבה" פנימי שאינו בהכרח מוצג למשתמש במלואו, ורק לאחר מכן מנסח תשובה סופית מבוססת על תהליך הביניים הזה. הבחירה להפעיל תהליך כזה, ובאיזו עצימות, ניתנת לרוב לשליטה — כדי לאזן בין איכות ל-latency בהתאם לצורך במשימה הספציפית.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>יכולות extended thinking (למשל אצל Claude) ומודלי סדרת-o (למשל אצל OpenAI) מייצגות גישה כללית דומה: הקצאת "תקציב חשיבה" גדול יותר למשימות שדורשות נימוק רב-שלבי, לעומת תגובה מיידית למשימות פשוטות שבהן חשיבה מורחבת רק מוסיפה זמן המתנה מיותר.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להפעיל reasoning מורחב עבור משימות רב-שלביות שבהן טעות בשלב אחד פוגמת בתוצאה הסופית — קוד מורכב, ניתוח לוגי, תכנון.</li>
+          <li><i class="fas fa-check"></i> לבחון אמפירית האם reasoning מורחב אכן משפר תוצאה במשימה נתונה לפני הפעלתו כברירת מחדל, ולא להניח שהוא תמיד עדיף.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להפעיל reasoning מורחב כברירת מחדל על כל בקשה, כולל שאלות עובדתיות פשוטות שאינן זקוקות לו, ולשלם latency ועלות ללא תועלת.</li>
+            <li><i class="fas fa-xmark"></i> להתייחס לתהליך החשיבה הפנימי כאל תשובה סופית מוצגת — הוא שלב ביניים, לא הפלט שנועד למשתמש.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ההחלטה מתי להפעיל מודל reasoning דומה במבנה לטרייד-אוף retrieve-then-rerank מפרק 4 — משאב חישובי יקר יותר לא כברירת מחדל גורפת, אלא כשלב מודע שמופעל היכן שהמורכבות בפועל מצדיקה אותו.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>מודלי reasoning מבצעים תהליך חשיבה פנימי לפני התשובה הסופית.</li>
+            <li>משתלם בבעיות מורכבות רב-שלביות; מיותר ויקר-latency במשימות פשוטות.</li>
+            <li>עוצמת החשיבה ניתנת בדרך כלל לכיוונון לפי צורך המשימה.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> Cursor Agent Mode / GitHub Copilot Workspace — לולאת agent מלאה</div>
+          <p>מצב agentic בכלי כתיבת קוד כמו Cursor או GitHub Copilot Workspace ממחיש כיצד כל נושאי הפרק פועלים יחד. הבקשה ("הוסף endpoint חדש שמאמת טוקן ומחזיר פרופיל משתמש") נכנסת ללולאת <a href="#agent-loop--from--05-agents.html%23real-world-example">Agent Loop</a>: שלב תכנון מפרק אותה לתת-משימות — איתור קובץ ה-routes הרלוונטי, בדיקת מנגנון האימות הקיים, כתיבת הקוד החדש, הרצת בדיקות. כל תת-משימה מופעלת דרך <a href="#tool-calling--from--05-agents.html%23real-world-example">tool calling</a> — קריאת קובץ, חיפוש בבסיס קוד, כתיבת קובץ, הרצת terminal — כאשר כל קריאה בנויה על מנגנון <a href="#function-calling--from--05-agents.html%23real-world-example">function calling</a> הבסיסי. אם צילום מסך של שגיאת בדיקה מצורף, הכלי מעבד אותו דרך ערוץ <a href="#vision--from--05-agents.html%23real-world-example">vision</a> ומשלב אותו בהקשר לצד הקוד. במשימות שדורשות נימוק רב-שלבי מורכב — למשל תכנון מחדש של ממשק בין שכבות — הכלי עשוי להפעיל <a href="#reasoning-models--from--05-agents.html%23real-world-example">reasoning מורחב</a> לפני שהוא מציע שינוי. תוצאת כל שלב חוזרת ללולאה, עד שהבדיקות עוברות והתשובה הסופית — קוד עובד, לא רק הצעה — מוצגת למשתמש. זהו ההבדל בין "השלמת קוד" לבין agent במובן המלא: לא צעד בודד, אלא תהליך איטרטיבי שמגיב לתוצאותיו שלו.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#function-calling">Function Calling</a>
+      <a class="toc__link" href="#tool-calling">Tool Calling</a>
+      <a class="toc__link" href="#agent-loop">Agent Loop</a>
+      <a class="toc__link" href="#multi-agent-intro">מבוא ל-Multi-Agent</a>
+      <a class="toc__link" href="#mcp">MCP — Model Context Protocol</a>
+      <a class="toc__link" href="#vision">Vision — קלט חזותי</a>
+      <a class="toc__link" href="#reasoning-models">מודלי Reasoning</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>

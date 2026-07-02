@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory & RAG — AI Engineering Handbook</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/prism/prism.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook</div>
+    <ul class="sidebar__nav">
+      <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
+      <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
+      <li><a class="sidebar__link is-active" href="03-memory-rag.html"><i class="fas fa-database"></i> 3. Memory & RAG</a></li>
+      <li><a class="sidebar__link" href="04-advanced-rag.html"><i class="fas fa-layer-group"></i> 4. RAG מתקדם</a></li>
+      <li><a class="sidebar__link" href="05-agents.html"><i class="fas fa-robot"></i> 5. Agents & Modern AI</a></li>
+      <li><a class="sidebar__link" href="06-agent-patterns.html"><i class="fas fa-sitemap"></i> 6. Agent Patterns מתקדמים</a></li>
+      <li><a class="sidebar__link" href="07-evaluation.html"><i class="fas fa-flask"></i> 7. Evaluation & Testing</a></li>
+      <li><a class="sidebar__link" href="08-production.html"><i class="fas fa-shield-halved"></i> 8. Production AI</a></li>
+      <li><a class="sidebar__link" href="09-architecture-cheatsheet.html"><i class="fas fa-map"></i> 9. Architecture & Cheat Sheet</a></li>
+    </ul>
+  </aside>
+  <main>
+    <header class="page-header">
+      <div class="breadcrumb"><a href="../index.html">שער הספר</a> / <span class="current">Memory & RAG</span></div>
+      <button class="sidebar-toggle" aria-label="תפריט"><i class="fas fa-bars"></i></button>
+    </header>
+    <div class="content">
+      <section class="chapter-hero">
+        <div class="chapter-hero__eyebrow">פרק 3</div>
+        <h1><i class="fas fa-database"></i> Memory & RAG</h1>
+        <p>ה-LLM עצמו הוא stateless לחלוטין — כל קריאת API עומדת בפני עצמה, ללא זיכרון מובנה מקריאות קודמות וללא גישה לידע שלא נכלל באימונו. הפרק הזה עוסק בשני המנגנונים שמפצים על כך בשכבת האפליקציה: Memory, שמדמה המשכיות שיחה על ידי בחירה יזומה של היסטוריה לשליחה בכל קריאה; ו-RAG (Retrieval-Augmented Generation), שמזין למודל ידע עדכני וספציפי-לדומיין שלא היה חלק מהאימון, על ידי אחזור מסמכים רלוונטיים ברגע הבקשה.</p>
+      </section>
+
+      <div class="chapter-diagram">
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-circle-question"></i> Question</div><div class="flow-step__desc">שאלת המשתמש</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-shapes"></i> Embedding</div><div class="flow-step__desc">המרת השאלה לוקטור</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-magnifying-glass"></i> Vector Search</div><div class="flow-step__desc">חיפוש דמיון במסד</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-file-lines"></i> Documents</div><div class="flow-step__desc">מסמכים רלוונטיים</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-microchip"></i> LLM</div><div class="flow-step__desc">תשובה מבוססת הקשר</div></div>
+        </div>
+        <div class="chapter-diagram__caption">תזרים ה-RAG הבסיסי — הרעיון המרכזי שהפרק בונה עליו.</div>
+      </div>
+
+      <section class="topic" id="conversation-memory">
+        <h2 class="topic__title"><i class="fas fa-comments"></i> Conversation Memory</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>המנגנון שבו ה-Backend שומר את היסטוריית השיחה בין המשתמש למערכת, ובוחר בכל קריאת API מחדש אילו הודעות מתוך ההיסטוריה הזו לצרף לבקשה הנוכחית כרשימת <code>messages</code> עם roles של User ו-Assistant (ראו <a href="02-llm-apis-prompts.html#roles--from--03-memory-rag.html%23conversation-memory">System / User / Assistant Roles בפרק 2</a>).</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>מכיוון שהמודל עצמו stateless, "זיכרון שיחה" הוא אשליה מהונדסת — אין תהליך רץ ברקע שזוכר. אם ה-Backend לא ישלח מחדש בכל קריאה את ההודעות הרלוונטיות מהשיחה עד כה, המודל יתייחס לכל הודעה כפנייה ראשונה ומבודדת, ללא כל מודעות למה שנאמר קודם. תחושת ה"שיחה הרציפה" שחווה משתמש בצ'אט היא תוצר של ניהול היסטוריה בצד השרת, לא יכולת מובנית של המודל.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>בכל פנייה חדשה של המשתמש, ה-Backend שולף את היסטוריית השיחה השמורה (במסד נתונים או במטמון), מוסיף אליה את ההודעה החדשה, ומעביר את הרצף כולו ל-Prompt Builder שמחליט אילו חלקים בפועל נכנסים לקריאה — לא בהכרח כל ההיסטוריה מהתחלה. תשובת המודל נשמרת בחזרה כהודעת Assistant בהיסטוריה, כדי שתהיה זמינה לקריאה הבאה. ככל שהשיחה מתארכת, שליחת כל ההיסטוריה גולמית הופכת יקרה ובלתי-מעשית — כאן נכנסות החלטות ניהול הקשר שנדונות בנושאים הבאים בפרק.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בצ'אט כמו זה של Claude או ChatGPT, כאשר משתמש שואל "ותן לי גם גרסה קצרה יותר" בהודעה חמישית בשיחה, המודל "מבין" למה הכוונה רק כי ה-Backend צירף מחדש את ארבע ההודעות הקודמות לקריאת ה-API הנוכחית. אם ההיסטוריה לא הייתה נשלחת, השאלה הייתה חסרת הקשר לחלוטין מבחינת המודל.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לשמור את היסטוריית השיחה בצד השרת (מסד נתונים / מטמון), לעולם לא להסתמך על "זיכרון" מצד המודל.</li>
+          <li><i class="fas fa-check"></i> להתייחס לבחירת ההודעות הנשלחות כהחלטת הנדסה מפורשת, לא כברירת מחדל של "שלח הכול".</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להניח שהמודל "זוכר" שיחות קודמות ללא שליחת היסטוריה מפורשת בכל קריאה.</li>
+            <li><i class="fas fa-xmark"></i> לשלוח את כל היסטוריית השיחה ללא הגבלה בשיחות ארוכות, מה שמייקר כל קריאה ועלול לחרוג מ-Context Window.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>הבנה שגויה נפוצה אצל מהנדסים חדשים בתחום היא לחשוב על "Memory" כתכונה של המודל. בפועל זו תכונה של הארכיטקטורה סביבו — כל ספק LLM, כולל Anthropic ו-OpenAI, מספק API stateless; ה"זיכרון" נבנה כולו באפליקציה שמעליו.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>המודל עצמו stateless — אין זיכרון מובנה בין קריאות API.</li>
+            <li>ה-Backend שומר היסטוריה ובוחר בכל קריאה מה לשלוח ממנה מחדש.</li>
+            <li>שיחה "רציפה" היא תוצר הנדסי, לא יכולת של המודל.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="rag-flow">
+        <h2 class="topic__title"><i class="fas fa-route"></i> תזרים RAG</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>Retrieval-Augmented Generation (RAG) הוא תבנית ארכיטקטונית שבה, לפני קריאה ל-LLM, המערכת מאחזרת מסמכים רלוונטיים ממאגר ידע חיצוני ומצרפת אותם להקשר — כך שהמודל עונה בהתבסס על מידע ספציפי ועדכני, לא רק על מה שנלמד באימון.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>ידע האימון של מודל קפוא בזמן (ראו <a href="01-foundations.html">פרק 1</a>) ואינו כולל מידע פרטי, עסקי, או שהתעדכן לאחר מועד האימון. RAG פותר את הפער הזה ללא צורך לאמן מחדש את המודל: המידע הרלוונטי מסופק כטקסט בתוך ה-Context בזמן הבקשה, מה שגם מצמצם הזיות (ראו <a href="01-foundations.html">Hallucinations בפרק 1</a>) כי המודל "מצטט" מתוך מקור נתון במקום להסתמך על שחזור מהזיכרון הפנימי שלו.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>שאלת המשתמש הופכת לוקטור embedding, הוקטור הזה משמש לחיפוש דמיון במסד נתונים וקטורי כנגד embeddings של מסמכים שמוזנו מראש, המסמכים הרלוונטיים ביותר נבחרים, ומצורפים כטקסט להקשר שנשלח ל-LLM יחד עם השאלה המקורית. חמשת השלבים — Question, Embedding, Vector Search, Relevant Documents, LLM — מתרחשים בכל בקשה מחדש, בזמן אמת.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזר תמיכה שנשאל "מה מדיניות ההחזרות שלכם למוצר שנרכש לפני חצי שנה?" לא "יודע" את התשובה מאימונו — הוא מאחזר את מסמך המדיניות הרלוונטי מהמאגר הפנימי של החברה, ומצרף אותו כהקשר לפני מתן התשובה. ללא RAG, המודל היה נאלץ לנחש או להזות תשובה כללית שאינה תואמת את המדיניות בפועל.</p>
+        </div>
+        <div class="flow-diagram flow-diagram--horizontal">
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-circle-question"></i> Question</div><div class="flow-step__desc">שאלת המשתמש בשפה טבעית</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-vector-square"></i> Embedding</div><div class="flow-step__desc">המרת השאלה לוקטור סמנטי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-magnifying-glass"></i> Vector Search</div><div class="flow-step__desc">חיפוש דמיון במסד נתונים וקטורי</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-file-lines"></i> Relevant Documents</div><div class="flow-step__desc">קטעי המידע הרלוונטיים ביותר</div></div>
+          <div class="flow-arrow"><i class="fas fa-arrow-left"></i></div>
+          <div class="flow-step"><div class="flow-step__label"><i class="fas fa-plug"></i> LLM</div><div class="flow-step__desc">מענה בהתבסס על ההקשר המאוחזר</div></div>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להשתמש באותו מודל embedding (או תואם) גם לאינדוקס המסמכים וגם לשאילתת החיפוש.</li>
+          <li><i class="fas fa-check"></i> לצרף למודל את מקור המסמכים המאוחזרים כדי לאפשר ציטוט ובדיקת אמינות.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להניח ש-RAG מחליף לגמרי את הצורך בבדיקת עובדתיות — מסמך שאוחזר עדיין יכול להיות לא-רלוונטי או מיושן.</li>
+            <li><i class="fas fa-xmark"></i> לבלבל בין RAG (הזרקת ידע חיצוני להקשר) לבין Fine-Tuning (שינוי המודל עצמו) — ראו נושא <a href="#rag-vs-finetune--from--03-memory-rag.html%23rag-flow">RAG מול Fine-Tuning</a>.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>איכות תשובת RAG תלויה בשלב האחזור הרבה יותר מבשלב ה-Generation. מודל חזק שמקבל מסמכים לא-רלוונטיים ייתן תשובה גרועה; מודל חלש שמקבל את המסמך הנכון בדיוק לרוב יצליח. כשתשובת RAG לא מספקת, נקודת הבדיקה הראשונה היא שלב ה-Vector Search, לא ה-prompt.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>הרצף: Question → Embedding → Vector Search → Relevant Documents → LLM.</li>
+            <li>RAG מזין ידע עדכני/פרטי בזמן ריצה, ללא אימון מחדש של המודל.</li>
+            <li>איכות האחזור קובעת את איכות התשובה יותר מאיכות המודל עצמו.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="memory-manager">
+        <h2 class="topic__title"><i class="fas fa-brain"></i> Memory Manager</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>הרכיב האחראי להחליט, בכל קריאת API, אילו הודעות עבר או עובדות שנלמדו במהלך השיחה נכנסות בפועל ל-Context — באמצעות בחירת ה-N ההודעות האחרונות, סיכום (summarization) של היסטוריה ארוכה, או שילוב של השניים.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>שיחה ארוכה שנשלחת גולמית וללא סינון חורגת מ-Context Window או הופכת יקרה מדי לכל קריאה בודדת. Memory Manager הוא מה שמאפשר לשיחה "להימשך" לאורך זמן בעלות סבירה.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>אסטרטגיה נפוצה: לשמור את ה-N ההודעות האחרונות במלואן, ולסכם (באמצעות קריאת LLM נפרדת) את כל מה שקדם להן לפסקת תקציר קצרה שמצורפת כהקשר רקע.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>לאחר עשרות הודעות בשיחה תמיכה ארוכה, Memory Manager עשוי לשלוח למודל תקציר בן שתי שורות של הבעיה שדווחה בתחילת השיחה, בצירוף חמש ההודעות האחרונות במלואן — במקום את כל תמלול השיחה.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לסכם היסטוריה ישנה במקום להשמיט אותה לחלוטין, כדי לשמר רציפות עובדתית.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לחתוך היסטוריה ישנה בלי סיכום, ולאבד עובדות שהמשתמש מסתמך על כך שהמערכת "זוכרת".</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>סיכום היסטוריה הוא בעצמו קריאת LLM נוספת, ולכן כפוף לאותם סיכוני הזיה כמו כל פלט מודל אחר — תקציר שגוי עלול "להנציח" טעות לאורך כל המשך השיחה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Memory Manager מחליט מה מתוך ההיסטוריה נכנס להקשר בכל קריאה.</li>
+            <li>שילוב נפוץ: הודעות אחרונות מלאות + סיכום של מה שקדם להן.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="token-budgeting">
+        <h2 class="topic__title"><i class="fas fa-coins"></i> Token Budgeting</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>חלוקה מכוונת ומוגבלת מראש של תקציב הטוקנים העומד לרשות קריאת API בין רכיביו: System Prompt, Memory (היסטוריית שיחה), RAG (מסמכים מאוחזרים), ורזרבה לתשובה הצפויה.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>Context Window סופי, ומחיר קריאה נגזר ישירות ממספר הטוקנים הנשלחים (ראו <a href="01-foundations.html">תמחור בפרק 1</a>). ללא תקציב מוגדר, רכיב אחד (למשל היסטוריה ארוכה) עלול "לבלוע" את כל המקום ולדחוק החוצה מידע קריטי כמו מסמכי RAG, ולפגוע גם באיכות וגם בעלות.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>Prompt Builder מקצה תקרת טוקנים לכל רכיב מראש (למשל: System קבוע, עד X טוקנים ל-Memory, עד Y ל-RAG), וכל רכיב שחורג מתקרתו נחתך או מסוכם לפני ההרכבה הסופית של הפרומפט.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>קריאה עם Context Window של 128K עשויה להקצות כ-500 טוקנים ל-System Prompt, 2,000 להיסטוריית שיחה, 4,000 למסמכי RAG שאוחזרו, והשאר כרזרבה לתשובה — כדי שהוספת מסמך ארוך לא תדחוק החוצה את ההיסטוריה, ולהפך.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להגדיר תקרת טוקנים מפורשת לכל רכיב הקשר, לא רק תקרה כוללת לכל הקריאה.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להתעלם מתקציב טוקנים עד שקריאה נכשלת מחריגה מה-Context Window בפרודקשן.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>תקציב טוקנים הוא כלי עלות לא פחות מכלי איכות — בקריאות בהיקף גדול, שינוי קטן בהקצאה (למשל צמצום מספר מסמכי RAG מ-5 ל-3) יכול לתרגם לחיסכון משמעותי מבלי לפגוע בתשובה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>תקציב הטוקנים מתחלק בין System / Memory / RAG / תשובה צפויה.</li>
+            <li>הקצאה לא מבוקרת בין הרכיבים פוגעת גם באיכות וגם בעלות.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="embeddings">
+        <h2 class="topic__title"><i class="fas fa-vector-square"></i> Embeddings</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>Embedding הוא וקטור של מספרים (בדרך כלל מאות עד אלפי ממדים) שמייצג את המשמעות הסמנטית של טקסט (או תוכן אחר), כך שטקסטים בעלי משמעות דומה מקבלים וקטורים הממוקמים קרוב זה לזה במרחב הרב-ממדי.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>מחשבים לא יכולים להשוות "משמעות" של טקסט ישירות. embeddings הופכים משמעות למספרים שניתן להשוות ביניהם מתמטית — זו התשתית שמאפשרת חיפוש "לפי משמעות" (semantic search) במקום התאמת מילות מפתח בלבד, ועליה מבוסס כל תזרים RAG.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>מודל embedding ייעודי (נפרד ממודל השיחה) מקבל טקסט ומחזיר וקטור קבוע-אורך. מודלים אלו מאומנים כך שטקסטים הדומים מבחינה סמנטית — גם אם משתמשים במילים שונות לגמרי — יופקו לוקטורים קרובים במרחב, בעוד טקסטים שאינם קשורים יופקו לוקטורים רחוקים.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>באפליקציית מתכונים כמו After Taste, ניתן להמחיש (כתרחיש היפותטי להדגמה, לא כתיאור פיצ'ר קיים בפועל) חיפוש מתכונים לפי embeddings של רשימת הרכיבים: וקטור של "עגבניות, בזיליקום, מוצרלה" יהיה קרוב במרחב הווקטורי לוקטור של "עגבניות שרי, גבינה איטלקית, עשבי תיבול" — גם ללא חפיפת מילים מדויקת — ורחוק מווקטור של "שוקולד, קמח, ביצים".</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לבחור מודל embedding מתאים לשפה ולדומיין (למשל תמיכה בעברית אם הטקסטים בעברית).</li>
+          <li><i class="fas fa-check"></i> לגזור embeddings מיחידות טקסט קטנות ומגובשות סמנטית, לא ממסמכים ארוכים שלמים.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשוות embeddings שהופקו על ידי שני מודלים שונים — הוקטורים אינם באותו מרחב וההשוואה חסרת משמעות.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>embedding אינו "תמצית" של הטקסט וניתן לקריאה אנושית ישירה — הוא ייצוג מתמטי המיועד להשוואה בין וקטורים. הערך שלו נובע כולו מהיחסים המרחביים בינו לבין embeddings אחרים, לא מהערכים הבודדים בתוכו.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Embedding = ייצוג וקטורי של משמעות סמנטית.</li>
+            <li>טקסטים דומים במשמעות → וקטורים קרובים במרחב, גם ללא חפיפת מילים.</li>
+            <li>יש להשתמש באותו מודל embedding לאורך כל התהליך.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="vector-db-basics">
+        <h2 class="topic__title"><i class="fas fa-cube"></i> יסודות Vector DB</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מסד נתונים וקטורי הוא מסד נתונים המתמחה באחסון embeddings וביצוע חיפוש דמיון (similarity search) מהיר ביניהם בקנה מידה — איתור, מתוך מיליוני וקטורים, אלו הקרובים ביותר לוקטור שאילתה נתון.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>חיפוש דמיון מדויק (השוואת וקטור מול כל וקטור במאגר) הופך איטי מדי כשמדובר במאגר גדול. מסד נתונים וקטורי מספק מבני אינדוקס ייעודיים המאפשרים חיפוש דמיון קרוב-לוודאי (approximate) במהירות גבוהה, גם כשהמאגר מכיל מיליוני פריטים — זו התשתית שמאפשרת לשלב Vector Search של RAG לרוץ בזמן סביר.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>בשלב האינדוקס, כל מסמך (או קטע ממנו) מומר ל-embedding ונשמר במסד יחד עם המטא-דאטה שלו. בשלב השאילתה, שאלת המשתמש מומרת גם היא ל-embedding, ומסד הנתונים מחזיר את הפריטים שהוקטורים שלהם הכי קרובים לוקטור השאילתה, לפי מדד דמיון (ראו <a href="#cosine-similarity--from--03-memory-rag.html%23vector-db-basics">Cosine Similarity</a>).</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>בתרחיש ההמחשה של After Taste, מסד נתונים וקטורי היה מאחסן את ה-embedding של כל אחד מ-66 המתכונים לפי רשימת הרכיבים שלו, ומאפשר לאחזר במהירות את המתכונים הדומים ביותר לשאילתת רכיבים חדשה — ללא צורך להשוות ידנית מול כל מתכון במאגר.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לאחסן לצד כל embedding מטא-דאטה שמאפשרת סינון (למשל תאריך, קטגוריה, מקור) לפני או אחרי חיפוש הדמיון.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבחור מסד נתונים וקטורי לפי פופולריות בלבד, בלי לבדוק התאמה להיקף הנתונים ולדרישות התפעול בפועל.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ליסוד הזה בלבד — האם להשתמש במסד ייעודי, בתוסף וקטורי למסד קיים, או בפתרון מנוהל — יש שיקולי עלות, latency והתפעול שונים מהותית. השוואת מוצרים ספציפית מפורטת ב<a href="04-advanced-rag.html#vector-db-comparison--from--03-memory-rag.html%23vector-db-basics">השוואת Vector DB בפרק 4</a>.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Vector DB מתמחה באחסון embeddings וחיפוש דמיון מהיר בקנה מידה.</li>
+            <li>חיפוש מבוסס אינדוקס קרוב-לוודאי, לא השוואה מדויקת מול כל פריט.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="cosine-similarity">
+        <h2 class="topic__title"><i class="fas fa-angle-double-left"></i> Cosine Similarity</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>מדד דמיון בין שני וקטורים, המחושב מהזווית ביניהם (קוסינוס הזווית) ולא ממרחקם המוחלט — ערך קרוב ל-1 מציין וקטורים כמעט זהים בכיוונם, ערך קרוב ל-0 מציין חוסר קשר.</p>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>ל-embeddings, כיוון הוקטור נושא את המשמעות הסמנטית, בעוד גודלו (magnitude) לרוב מושפע מגורמים כמו אורך הטקסט המקורי ואינו רלוונטי לדמיון. Cosine Similarity מתעלמת מהגודל ומודדת רק כיוון — ולכן היא המדד המקובל ביותר להשוואת embeddings, בהבדל ממדדי מרחק כמו מרחק אוקלידי הרגישים גם לגודל הוקטור.</p>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>מסד הנתונים הוקטורי מחשב את Cosine Similarity בין וקטור השאילתה לבין כל וקטור מועמד (או קירוב מהיר שלו דרך האינדקס), ומחזיר את הפריטים בעלי הציון הגבוה ביותר כתוצאות החיפוש הרלוונטיות ביותר.</p>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>וקטור שאילתה של "רכיבים איטלקיים קלאסיים" יקבל ציון Cosine Similarity גבוה מול וקטור מתכון הפסטה ברוטב עגבניות, וציון נמוך מול וקטור מתכון עוגת שוקולד — הציון הזה, לא מרחק גיאומטרי גולמי, הוא שקובע את דירוג התוצאות.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> לוודא שמסד הנתונים הוקטורי מוגדר להשתמש ב-Cosine Similarity (או מדד תואם) כברירת מחדל למודל ה-embedding הנבחר.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> להשתמש במרחק אוקלידי גולמי כברירת מחדל בלי לבדוק אם המודל תומך גם ב-Cosine Similarity לתוצאות טובות יותר.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>עבור embeddings מנורמלים (uniform-length), Cosine Similarity ומכפלה פנימית (dot product) מניבים אותו דירוג תוצאות — הבחירה בין השניים היא לרוב שיקול ביצועים טכני, לא הבדל איכותי בתוצאה.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>Cosine Similarity מודדת זווית בין וקטורים, לא מרחק מוחלט.</li>
+            <li>זהו המדד המקובל ל-embeddings כי הכיוון נושא את המשמעות הסמנטית.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="rag-vs-finetune">
+        <h2 class="topic__title"><i class="fas fa-scale-balanced"></i> RAG מול Fine-Tuning</h2>
+        <div class="box box--what">
+          <div class="box__label"><i class="fas fa-circle-info"></i> מה זה?</div>
+          <p>שתי גישות שונות מהותית להתאמת מודל למשימה ספציפית:</p>
+          <ul class="term-list">
+            <li><strong>RAG</strong> — מזין ידע חיצוני להקשר בזמן הבקשה מבלי לשנות את המודל עצמו.</li>
+            <li><strong>Fine-Tuning</strong> — מאמן מחדש (חלקית) את משקלי המודל כך שהתנהגותו, סגנונו, או דפוסי הפלט שלו משתנים באופן קבוע.</li>
+          </ul>
+        </div>
+        <div class="box box--why">
+          <div class="box__label"><i class="fas fa-circle-question"></i> למה צריך את זה?</div>
+          <p>בחירה שגויה בין השניים היא כשל ארכיטקטוני יקר:</p>
+          <ul class="term-list term-list--why">
+            <li><strong>Fine-Tuning</strong> על ידע שמתעדכן תדיר מחייב אימון מחדש בכל שינוי.</li>
+            <li><strong>RAG</strong> לשינוי סגנון או פורמט קבוע דורש חזרה על אותה הנחיה בכל פרומפט ואינו אמין באותה מידה כמו התנהגות "צרובה" במודל.</li>
+          </ul>
+        </div>
+        <div class="box box--how">
+          <div class="box__label"><i class="fas fa-gears"></i> איך זה עובד?</div>
+          <p>כלל ההכרעה המעשי:</p>
+          <ul class="term-list term-list--how">
+            <li><strong>RAG</strong> — כאשר הצורך הוא ידע — עובדות, מסמכים, מידע שמשתנה או מתעדכן — מכיוון שעדכון מאגר המסמכים מיידי וזול לעומת אימון מחדש.</li>
+            <li><strong>Fine-Tuning</strong> — כאשר הצורך הוא שינוי התנהגות קבוע — טון, פורמט פלט עקבי, דפוס חשיבה ספציפי לדומיין — מכיוון שההתנהגות הרצויה הופכת חלק אינטגרלי מהמודל ואינה תלויה בהזכרה מחדש בכל פרומפט.</li>
+          </ul>
+        </div>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-lightbulb"></i> דוגמה</div>
+          <p>עוזר משפטי שצריך לענות על סמך תקנות שמתעדכנות מדי רבעון מתאים ל-RAG — עדכון מאגר המסמכים אינו דורש נגיעה במודל. עוזר שצריך תמיד להחזיר תשובות בפורמט משפטי-פורמלי קבוע ובסגנון כתיבה ספציפי ועקבי לחלוטין לאורך אלפי בקשות מתאים יותר ל-Fine-Tuning, כי ההתנהגות הופכת ברירת מחדל של המודל עצמו.</p>
+        </div>
+        <ul class="practices practices--good">
+          <li><i class="fas fa-check"></i> להתחיל תמיד מ-RAG ומ-Prompt Engineering לפני שיקול Fine-Tuning — עלות ומורכבות ההפעלה נמוכות משמעותית.</li>
+          <li><i class="fas fa-check"></i> לשקול Fine-Tuning רק כאשר יש דפוס התנהגות עקבי שחוזר על עצמו ולא ניתן להשגה אמינה דרך prompt בלבד.</li>
+        </ul>
+        <details class="mistakes">
+          <summary>טעויות נפוצות <i class="fas fa-chevron-left"></i></summary>
+          <ul class="practices practices--bad">
+            <li><i class="fas fa-xmark"></i> לבצע Fine-Tuning כדי "להזין" למודל עובדות חדשות — ידע עדכני שייך ל-RAG, לא לאימון מחדש.</li>
+            <li><i class="fas fa-xmark"></i> לנסות לאכוף סגנון עקבי לחלוטין רק דרך System Prompt ארוך יותר ויותר, כשהפתרון היעיל בפועל הוא Fine-Tuning.</li>
+          </ul>
+        </details>
+        <div class="insight">
+          <div class="insight__label"><i class="fas fa-lightbulb"></i> AI Engineer Insight</div>
+          <p>ברוב פרויקטי ה-production, RAG פותר את רוב הצרכים העסקיים הריאליים בעלות נמוכה משמעותית מ-Fine-Tuning — ולכן הוא ברירת המחדל הראשונה שיש לבחון. Fine-Tuning נשמר למקרים ספציפיים שבהם התנהגות עקבית קריטית ואינה מושגת אמינה דרך prompt. להרחבה על טכניקות RAG מתקדמות ראו <a href="04-advanced-rag.html#chunking--from--03-memory-rag.html%23rag-vs-finetune">פרק 4</a>.</p>
+        </div>
+        <div class="remember">
+          <h4>מה חשוב לזכור</h4>
+          <ul>
+            <li>ידע משתנה/עדכני → RAG; התנהגות/סגנון/פורמט קבוע → Fine-Tuning.</li>
+            <li>RAG זול ומהיר לעדכון; Fine-Tuning יקר אך "צורב" התנהגות עקבית.</li>
+            <li>יש להתחיל מ-RAG ומ-Prompt Engineering לפני שיקול Fine-Tuning.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="topic" id="real-world-example">
+        <h2 class="topic__title"><i class="fas fa-flask"></i> Real World Example</h2>
+        <div class="example-card">
+          <div class="example-card__label"><i class="fas fa-star"></i> Claude / ChatGPT — Memory ואחזור מקורות</div>
+          <p>עוזרים שיחתיים כמו Claude ו-ChatGPT ממחישים כיצד שני מנגנוני הפרק פועלים זה לצד זה. שכבת Conversation Memory שומרת את היסטוריית הצ'אט ומחליטה, בכל תגובה, אילו הודעות קודמות לצרף מחדש לקריאת ה-API — כולל, במוצרים מסוימים, שכבת Memory Manager שמסכמת שיחות ישנות או שומרת עובדות נבחרות לטווח ארוך במקום להזרים תמלול גולמי אינסופי. כאשר משתמש מבקש מידע עדכני או מבוסס-מקור — למשל שאלה שדורשת חיפוש רשת — המערכת מפעילה תבנית דמוית-RAG: היא מאחזרת תוצאות רלוונטיות ממקור חיצוני, מצרפת אותן להקשר, ורק אז מנסחת תשובה עם ציון המקורות שממנה נשאבה — בדיוק העיקרון שתואר בנושא <a href="#rag-flow--from--03-memory-rag.html%23real-world-example">תזרים RAG</a>, מיושם כאן על תוכן חי מהאינטרנט במקום מאגר מסמכים סטטי.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside class="toc">
+    <div class="toc__title">בפרק זה</div>
+    <nav>
+      <a class="toc__link" href="#conversation-memory">Conversation Memory</a>
+      <a class="toc__link" href="#rag-flow">תזרים RAG</a>
+      <a class="toc__link" href="#memory-manager">Memory Manager</a>
+      <a class="toc__link" href="#token-budgeting">Token Budgeting</a>
+      <a class="toc__link" href="#embeddings">Embeddings</a>
+      <a class="toc__link" href="#vector-db-basics">יסודות Vector DB</a>
+      <a class="toc__link" href="#cosine-similarity">Cosine Similarity</a>
+      <a class="toc__link" href="#rag-vs-finetune">RAG מול Fine-Tuning</a>
+      <a class="toc__link" href="#real-world-example">Real World Example</a>
+    </nav>
+  </aside>
+</div>
+<script src="../assets/prism/prism.js"></script>
+<script src="../assets/script.js"></script>
+<button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
+</body>
+</html>
