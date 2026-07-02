@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/1e197afd-92f4-4106-ae23-3ad00472a0c6
+
 # AI Engineering Handbook
 
 מדריך עיון מקצועי בעברית (RTL) לבניית מערכות AI מבוססות LLM — מהיסודות התיאורטיים ועד לפריסה בפרודקשן.
