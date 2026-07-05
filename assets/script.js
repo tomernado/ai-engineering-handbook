@@ -14,6 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (backdrop) {
     backdrop.addEventListener("click", () => setSidebarOpen(false));
   }
+  // Close button lives inside the drawer itself (not the header), so it's
+  // never at risk of being covered by the open drawer's own z-index.
+  const closeBtn = document.querySelector(".sidebar-close");
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => setSidebarOpen(false));
+  }
 
   // Fold this chapter's in-page topic list into the sidebar drawer too:
   // the secondary .toc column is hidden below 1100px, so without this,
