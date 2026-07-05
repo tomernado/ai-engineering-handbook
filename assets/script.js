@@ -2,8 +2,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Mobile sidebar toggle
   const sidebar = document.querySelector(".sidebar");
   const toggle = document.querySelector(".sidebar-toggle");
+  const backdrop = document.querySelector(".sidebar-backdrop");
+  const setSidebarOpen = (open) => {
+    if (!sidebar) return;
+    sidebar.classList.toggle("is-open", open);
+    if (backdrop) backdrop.classList.toggle("is-visible", open);
+  };
   if (sidebar && toggle) {
-    toggle.addEventListener("click", () => sidebar.classList.toggle("is-open"));
+    toggle.addEventListener("click", () => setSidebarOpen(!sidebar.classList.contains("is-open")));
+  }
+  if (backdrop) {
+    backdrop.addEventListener("click", () => setSidebarOpen(false));
   }
 
   // Scroll-spy: highlight the TOC link for the topic in view

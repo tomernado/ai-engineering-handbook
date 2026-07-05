@@ -83,17 +83,30 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
 .breadcrumb { color: var(--text-muted); font-size: .9rem; }
 .breadcrumb a { color: var(--text-muted); }
 .breadcrumb .current { color: var(--text); }
-.sidebar-toggle { display: none; background: none; border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); width: 36px; height: 36px; cursor: pointer; }
+.sidebar-toggle { display: none; background: none; border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; }
+.sidebar-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, .5);
+  z-index: 39; opacity: 0; pointer-events: none; transition: opacity .2s ease;
+}
+.sidebar-backdrop.is-visible { opacity: 1; pointer-events: auto; }
 @media (max-width: 780px) {
   .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .page-header { padding: 10px 16px; }
+  .sidebar-backdrop { display: block; }
 }
 
 /* --- Content --- */
 .content { padding: 0 40px 80px; max-width: 1140px; }
 .chapter-hero { padding: 48px 0 32px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
 .chapter-hero__eyebrow { color: var(--accent); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
-.chapter-hero h1 { font-size: 2.2rem; margin: 8px 0; display: flex; align-items: center; gap: 14px; }
+.chapter-hero h1 { font-size: 2.2rem; margin: 8px 0; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .chapter-hero p { color: var(--text-muted); font-size: 1.05rem; }
+@media (max-width: 640px) {
+  .content { padding: 0 16px 60px; }
+  .chapter-hero { padding: 32px 0 24px; }
+  .chapter-hero h1 { font-size: 1.5rem; }
+  .chapter-hero p { font-size: .95rem; }
+}
 
 /* --- Chapter-level concept illustration (sits right below the intro) --- */
 .chapter-diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; margin: 0 0 40px; }
@@ -165,9 +178,9 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
 .term-list--why li { border-inline-start-color: var(--warning); }
 .term-list--how li { border-inline-start-color: var(--success); }
 
-.example-card { background: linear-gradient(135deg, #1E293B, #172033); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin: 16px 0; }
+.example-card { background: linear-gradient(135deg, #1E293B, #172033); border: 1px solid var(--border); border-inline-start: 4px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin: 16px 0; overflow-x: auto; }
 .example-card__label { font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.example-card table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+.example-card table { width: 100%; min-width: 480px; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
 .example-card th, .example-card td { border: 1px solid var(--border); padding: 8px 10px; text-align: right; }
 .example-card th { background: rgba(59, 130, 246, .12); color: #fff; }
 
