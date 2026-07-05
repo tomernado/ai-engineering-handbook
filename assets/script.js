@@ -3,11 +3,35 @@ document.addEventListener("DOMContentLoaded", () => {
   const sidebar = document.querySelector(".sidebar");
   const toggle = document.querySelector(".sidebar-toggle");
   const backdrop = document.querySelector(".sidebar-backdrop");
+  const MOBILE_QUERY = "(max-width: 780px)";
   const setSidebarOpen = (open) => {
     if (!sidebar) return;
     sidebar.classList.toggle("is-open", open);
     if (backdrop) backdrop.classList.toggle("is-visible", open);
+    // Belt-and-suspenders: force the exact positioning via inline styles
+    // too, on every toggle. Inline styles always beat stylesheet rules
+    // (short of !important), so this works even if some CSS cascade or
+    // media-query-matching quirk on a given device stops the class-based
+    // approach from taking effect.
+    if (window.matchMedia(MOBILE_QUERY).matches) {
+      Object.assign(sidebar.style, {
+        position: "fixed",
+        top: "0",
+        zIndex: "40",
+        width: "85vw",
+        maxWidth: "320px",
+        transition: "inset-inline-start .2s ease",
+        insetInlineStart: open ? "0" : "-85vw",
+      });
+    } else {
+      ["position", "top", "zIndex", "width", "maxWidth", "transition", "insetInlineStart"].forEach(
+        (prop) => { sidebar.style[prop] = ""; }
+      );
+    }
   };
+  // Enforce the closed state immediately on load too, in case the
+  // stylesheet's default rendering is ever wrong before any toggle happens.
+  setSidebarOpen(false);
   if (sidebar && toggle) {
     toggle.addEventListener("click", () => setSidebarOpen(!sidebar.classList.contains("is-open")));
   }
