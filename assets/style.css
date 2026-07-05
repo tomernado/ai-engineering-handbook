@@ -45,7 +45,11 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
 }
 @media (max-width: 780px) {
   .layout { grid-template-columns: 1fr; }
-  .sidebar { position: fixed; inset-inline-start: -300px; transition: inset-inline-start .2s ease; z-index: 40; }
+  .sidebar {
+    position: fixed; top: 0; inset-inline-start: -85vw;
+    width: 85vw; max-width: 320px;
+    transition: inset-inline-start .2s ease; z-index: 40;
+  }
   .sidebar.is-open { inset-inline-start: 0; }
 }
 
@@ -71,6 +75,17 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
 .sidebar__link:hover { background: var(--bg-card-hover); color: var(--text); text-decoration: none; }
 .sidebar__link.is-active { background: var(--accent); color: #fff; }
 .sidebar__link.is-active i { color: #fff; }
+
+/* In-chapter topic list, folded into the mobile drawer below the chapter
+   list — only shown under 1100px, where the real .toc column is hidden. */
+.sidebar-subnav { display: none; }
+@media (max-width: 1100px) {
+  .sidebar-subnav {
+    display: block; margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-subnav__title { color: var(--text-muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; padding: 0 12px; }
+}
 
 /* --- Header --- */
 .page-header {

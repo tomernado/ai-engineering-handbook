@@ -15,6 +15,35 @@ document.addEventListener("DOMContentLoaded", () => {
     backdrop.addEventListener("click", () => setSidebarOpen(false));
   }
 
+  // Fold this chapter's in-page topic list into the sidebar drawer too:
+  // the secondary .toc column is hidden below 1100px, so without this,
+  // narrow screens would have no way to jump between topics at all.
+  const tocNav = document.querySelector(".toc nav");
+  const sidebarNav = document.querySelector(".sidebar__nav");
+  if (tocNav && sidebarNav) {
+    const subnav = document.createElement("div");
+    subnav.className = "sidebar-subnav";
+    const title = document.createElement("div");
+    title.className = "sidebar-subnav__title";
+    title.textContent = "בפרק זה";
+    subnav.appendChild(title);
+    Array.from(tocNav.querySelectorAll("a")).forEach((link) => {
+      const clone = document.createElement("a");
+      clone.className = "sidebar__link";
+      clone.href = link.getAttribute("href");
+      clone.textContent = link.textContent;
+      subnav.appendChild(clone);
+    });
+    sidebarNav.after(subnav);
+  }
+
+  // Close the mobile drawer whenever any link inside it is activated.
+  if (sidebar) {
+    sidebar.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => setSidebarOpen(false));
+    });
+  }
+
   // Scroll-spy: highlight the TOC link for the topic in view
   const tocLinks = Array.from(document.querySelectorAll(".toc__link"));
   const topics = Array.from(document.querySelectorAll(".topic[id]"));
