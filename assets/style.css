@@ -43,17 +43,14 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
   .layout { grid-template-columns: var(--sidebar-w) 1fr; }
   .toc { display: none; }
 }
-@media (max-width: 780px) {
-  .layout { grid-template-columns: 1fr; }
-  .sidebar {
-    position: fixed; top: 0; inset-inline-start: -85vw;
-    width: 85vw; max-width: 320px;
-    transition: inset-inline-start .2s ease; z-index: 40;
-  }
-  .sidebar.is-open { inset-inline-start: 0; }
-}
 
 /* --- Sidebar --- */
+/* NOTE: this unconditional rule must be declared BEFORE the mobile
+   @media override below. Equal-specificity CSS rules resolve ties by
+   source order, not by which one is inside a media query — declaring
+   this after the override made "position: sticky" always win over the
+   media query's "position: fixed", regardless of viewport width, which
+   silently disabled the entire mobile off-canvas drawer. */
 .sidebar {
   background: var(--bg-card);
   border-inline-start: 1px solid var(--border);
@@ -62,6 +59,15 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
   top: 0;
   height: 100vh;
   overflow-y: auto;
+}
+@media (max-width: 780px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; top: 0; inset-inline-start: -85vw;
+    width: 85vw; max-width: 320px;
+    transition: inset-inline-start .2s ease; z-index: 40;
+  }
+  .sidebar.is-open { inset-inline-start: 0; }
 }
 .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; font-size: 1.1rem; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .sidebar__brand i { color: var(--accent); }
