@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LLM APIs ו-Prompt Engineering — AI Engineering Handbook</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
-<link rel="stylesheet" href="../assets/prism/prism.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<link rel="stylesheet" href="../assets/prism/prism.css?v=3">
 </head>
 <body>
 <div class="layout">
-<div class="sidebar-backdrop"></div>
+<div class="sidebar-backdrop" onclick="document.querySelector('.sidebar').classList.remove('is-open'); this.classList.remove('is-visible');"></div>
   <aside class="sidebar">
-    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook<button class="sidebar-close" aria-label="סגור תפריט"><i class="fas fa-xmark"></i></button></div>
+    <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook<button type="button" class="sidebar-close" aria-label="סגור תפריט" onclick="document.querySelector('.sidebar').classList.remove('is-open'); var b=document.querySelector('.sidebar-backdrop'); if(b) b.classList.remove('is-visible');"><i class="fas fa-xmark"></i></button></div>
     <ul class="sidebar__nav">
       <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
       <li><a class="sidebar__link is-active" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
@@ -518,8 +518,8 @@
     </nav>
   </aside>
 </div>
-<script src="../assets/prism/prism.js?v=2"></script>
-<script src="../assets/script.js?v=2"></script>
+<script src="../assets/prism/prism.js?v=3"></script>
+<script src="../assets/script.js?v=3"></script>
 <button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
 </body>
 </html>

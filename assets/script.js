@@ -20,6 +20,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (closeBtn) {
     closeBtn.addEventListener("click", () => setSidebarOpen(false));
   }
+  // Extra safety nets: Escape key, and tapping/clicking anywhere that
+  // isn't the drawer or its own toggle button.
+  if (sidebar) {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    });
+    document.addEventListener("click", (e) => {
+      if (!sidebar.classList.contains("is-open")) return;
+      if (sidebar.contains(e.target) || (toggle && toggle.contains(e.target))) return;
+      setSidebarOpen(false);
+    });
+  }
 
   // Fold this chapter's in-page topic list into the sidebar drawer too:
   // the secondary .toc column is hidden below 1100px, so without this,
