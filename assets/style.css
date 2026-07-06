@@ -71,6 +71,37 @@ code { font-family: "Consolas", monospace; direction: ltr; unicode-bidi: embed; 
 }
 .sidebar__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; font-size: 1.1rem; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .sidebar__brand i { color: var(--accent); }
+
+/* --- Site search (lives at the top of the sidebar, above the chapter list) --- */
+.site-search { position: relative; margin: 0 0 16px; }
+.site-search__box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.site-search__box i { color: var(--text-muted); font-size: .9rem; }
+.site-search__input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: .9rem;
+}
+.site-search__input::placeholder { color: var(--text-muted); }
+.site-search__results {
+  display: none; position: absolute; top: calc(100% + 6px); inset-inline-start: 0; inset-inline-end: 0;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  max-height: 60vh; overflow-y: auto; z-index: 45;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .4);
+}
+.site-search__results.is-visible { display: block; }
+.site-search__result {
+  display: block; padding: 10px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.site-search__result:last-child { border-bottom: none; }
+.site-search__result:hover { background: var(--bg-card-hover); text-decoration: none; }
+.site-search__result-chapter { color: var(--accent); font-size: .75rem; font-weight: 600; margin-bottom: 2px; }
+.site-search__result-title { font-weight: 700; font-size: .92rem; }
+.site-search__result-snippet { color: var(--text-muted); font-size: .8rem; margin-top: 2px; line-height: 1.5; }
+.site-search__empty { padding: 14px; color: var(--text-muted); font-size: .88rem; text-align: center; }
 .sidebar-close {
   display: none; margin-inline-start: auto;
   background: none; border: none; color: var(--text-muted);

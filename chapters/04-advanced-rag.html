@@ -4,14 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RAG מתקדם — AI Engineering Handbook</title>
-<link rel="stylesheet" href="../assets/style.css?v=5">
-<link rel="stylesheet" href="../assets/prism/prism.css?v=5">
+<link rel="stylesheet" href="../assets/style.css?v=6">
+<link rel="stylesheet" href="../assets/prism/prism.css?v=6">
 </head>
 <body>
 <div class="layout">
 <div class="sidebar-backdrop" onclick="document.querySelector('.sidebar').classList.remove('is-open'); this.classList.remove('is-visible');"></div>
   <aside class="sidebar">
     <div class="sidebar__brand"><i class="fas fa-brain"></i> AI Engineering Handbook<button type="button" class="sidebar-close" aria-label="סגור תפריט" onclick="document.querySelector('.sidebar').classList.remove('is-open'); var b=document.querySelector('.sidebar-backdrop'); if(b) b.classList.remove('is-visible');"><i class="fas fa-xmark"></i></button></div>
+    <div class="site-search">
+      <div class="site-search__box">
+        <i class="fas fa-magnifying-glass"></i>
+        <input type="text" class="site-search__input" placeholder="חיפוש בספר..." autocomplete="off">
+      </div>
+      <div class="site-search__results"></div>
+    </div>
     <ul class="sidebar__nav">
       <li><a class="sidebar__link" href="01-foundations.html"><i class="fas fa-cubes"></i> 1. יסודות</a></li>
       <li><a class="sidebar__link" href="02-llm-apis-prompts.html"><i class="fas fa-plug"></i> 2. LLM APIs ו-Prompt Engineering</a></li>
@@ -435,8 +442,9 @@
     </nav>
   </aside>
 </div>
-<script src="../assets/prism/prism.js?v=5"></script>
-<script src="../assets/script.js?v=5"></script>
+<script src="../assets/prism/prism.js?v=6"></script>
+<script src="../assets/search-index.js?v=6"></script>
+<script src="../assets/script.js?v=6"></script>
 <button class="back-to-top" aria-label="חזרה למעלה"><i class="fas fa-arrow-up"></i></button>
 </body>
 </html>

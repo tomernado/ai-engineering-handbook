@@ -86,6 +86,87 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Site-wide search across every chapter (client-side, no backend — the
+  // index is a static JS file loaded via assets/search-index.js).
+  const searchInput = document.querySelector(".site-search__input");
+  const searchResults = document.querySelector(".site-search__results");
+  if (searchInput && searchResults && window.SEARCH_INDEX) {
+    // Sidebar link hrefs already carry the correct relative path for the
+    // current page (plain "0N-file.html" from a chapter page, "chapters/
+    // 0N-file.html" from index.html) — reuse that instead of re-deriving it.
+    const sampleLink = document.querySelector(".sidebar__link");
+    const prefix =
+      sampleLink && sampleLink.getAttribute("href").startsWith("chapters/") ? "chapters/" : "";
+
+    const escapeHtml = (s) =>
+      s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    const snippetFor = (text, query) => {
+      const idx = text.toLowerCase().indexOf(query.toLowerCase());
+      if (idx === -1) return text.slice(0, 90);
+      const start = Math.max(0, idx - 30);
+      const end = Math.min(text.length, idx + query.length + 60);
+      return (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
+    };
+
+    const renderResults = (query) => {
+      const q = query.trim();
+      if (q.length < 2) {
+        searchResults.classList.remove("is-visible");
+        searchResults.innerHTML = "";
+        return;
+      }
+      const qLower = q.toLowerCase();
+      const scored = window.SEARCH_INDEX
+        .map((entry) => {
+          const titleMatch = entry.title.toLowerCase().includes(qLower);
+          const textMatch = entry.text.toLowerCase().includes(qLower);
+          const chapterMatch = entry.chapter.toLowerCase().includes(qLower);
+          if (!titleMatch && !textMatch && !chapterMatch) return null;
+          const score = titleMatch ? 2 : chapterMatch ? 1.5 : 1;
+          return { entry, score };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      if (!scored.length) {
+        searchResults.innerHTML =
+          `<div class="site-search__empty">לא נמצאו תוצאות עבור "${escapeHtml(q)}"</div>`;
+        searchResults.classList.add("is-visible");
+        return;
+      }
+
+      searchResults.innerHTML = scored
+        .map(
+          ({ entry }) => `
+        <a class="site-search__result" href="${prefix}${entry.file}#${entry.id}">
+          <div class="site-search__result-chapter">${escapeHtml(entry.chapter)}</div>
+          <div class="site-search__result-title">${escapeHtml(entry.title)}</div>
+          <div class="site-search__result-snippet">${escapeHtml(snippetFor(entry.text, q))}</div>
+        </a>`
+        )
+        .join("");
+      searchResults.classList.add("is-visible");
+    };
+
+    searchInput.addEventListener("input", () => renderResults(searchInput.value));
+    searchInput.addEventListener("focus", () => {
+      if (searchInput.value.trim().length >= 2) renderResults(searchInput.value);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") searchResults.classList.remove("is-visible");
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".site-search")) {
+        searchResults.classList.remove("is-visible");
+      }
+    });
+    searchResults.addEventListener("click", (e) => {
+      if (e.target.closest("a")) setSidebarOpen(false);
+    });
+  }
+
   // Scroll-spy: highlight the TOC link for the topic in view
   const tocLinks = Array.from(document.querySelectorAll(".toc__link"));
   const topics = Array.from(document.querySelectorAll(".topic[id]"));
